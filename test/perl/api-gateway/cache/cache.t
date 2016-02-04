@@ -17,9 +17,8 @@ plan tests => repeat_each() * (blocks() * 3 );
 my $pwd = cwd();
 
 our $HttpConfig = <<_EOC_;
-    include /etc/api-gateway/environment.conf.d/api-gateway-env.http.conf;
-    # include all APIs being proxied
-    include /etc/api-gateway/conf.d/*.conf;
+    lua_shared_dict cachedkeys 10m;
+    include ../../api-gateway/redis-upstream.conf; # generated during test script
 _EOC_
 
 #no_diff();
