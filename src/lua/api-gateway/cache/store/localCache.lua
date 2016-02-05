@@ -15,7 +15,6 @@
 --
 -- User: ddascal
 -- Date: 31/01/16
--- Time: 23:12
 --
 
 local cache_store_cls = require "api-gateway.cache.store"
@@ -49,12 +48,6 @@ function _M:getDictInstance()
     return dict
 end
 
---- Returns the max ttl for the cached keys, as set in the constructor init object with "max_ttl"
---
-function _M:getTTL()
-    return self.ttl
-end
-
 --- Returns the name of the cache.
 --
 function _M:getName()
@@ -64,7 +57,7 @@ end
 
 function _M:get(key)
     local d = self:getDictInstance()
-    if (d ~= nil ) then
+    if (d ~= nil) then
         return d:get(key)
     end
     return nil
@@ -72,17 +65,23 @@ end
 
 function _M:put(key, value)
     local d = self:getDictInstance()
-    if (d ~= nil ) then
-        -- TODO: compute exp time from max_ttl or from the ttl_function
-        local expires_in = self:getTTL()
-        return d:set(key, value, expires_in)
+    if (d ~= nil) then
+        local expires_in = self:getTTL(key, value) or 0
+        local succ, err, forcible = d:set(key, value, expires_in)
+        if (err) then
+            ngx.log(ngx.WARN, "Could not save key=", tostring(key), " into ", tostring(self:getName()))
+        end
+        if (forcible) then
+            ngx.log(ngx.INFO, "shared dict=", tostring(self:getDict()) " has removed other items from memory when adding key:", tostring(key))
+        end
+        return succ, err, forcible
     end
     return nil
 end
 
 function _M:evict(key)
     local d = self:getDictInstance()
-    if (d ~= nil ) then
+    if (d ~= nil) then
         return d:delete(key)
     end
     return nil
