@@ -41,4 +41,13 @@ function _M:addGetCommand(redis, key)
     return redis:get(key)
 end
 
+--- The Redis command to execute in order to delete an element from the cache using set
+-- @param redis the instance of the redis client
+-- @param key Cache Key
+--
+function _M:addDeleteCommand(redis, key)
+    return redis:del(key)
+end
+
+
 return _M
