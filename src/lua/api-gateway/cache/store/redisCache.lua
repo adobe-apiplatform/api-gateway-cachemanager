@@ -14,11 +14,7 @@
 -- Base class for Redis Cache Store
 --
 --  Init options:
---   1. ttl  - time to live of the key, in seconds
---   2. ttl_function - replaces ttl value with a dynamic value, in seconds
---
--- If no `ttl` or `ttl_function` is provided then the key doesn't expire.
--- This is similar to Persist method in Redis.
+--   1. ttl  - time to live of the key, in seconds. it could be a function, a static value or nil
 --
 -- User: ddascal
 -- Date: 31/01/16
@@ -73,24 +69,6 @@ function _M:getField()
     return self.field
 end
 
---- Returns an expiration time in seconds for the current key
--- `ttl_function` property takes priority versus `ttl`.
--- If neither exists the method return `nil` which means the item doesn't expire
--- if `ttl_function` fails it returns a TTL of 0
--- @param value tha value of the key
---
-function _M:getTTL(value)
-    if self.ttl_function then
-        local result, ttl = pcall(self.ttl_function(value))
-        if (result) then
-            return ttl
-        end
-        ngx.log(ngx.WARN, "Error calling ttl_function:", ttl)
-        return 0
-    end
-    return self.ttl
-end
-
 --- The Redis command to execute in order to save an elements in the cache
 -- @param redis the instance to the redis client
 -- @param key Cache Key
@@ -143,7 +121,7 @@ end
 -- @param value
 --
 function _M:put(key, value)
-    local keyexpires = self:getTTL(value)
+    local keyexpires = self:getTTL(key, value)
     ngx.log(ngx.DEBUG, "Storing in Redis the key [", tostring(key), "], expires in=", tostring(keyexpires), " s, value=", tostring(value))
     local redis_rw = redis:new()
     local redis_host, redis_port = getRedisUpstream(REDIS_RW_UPSTREAM)

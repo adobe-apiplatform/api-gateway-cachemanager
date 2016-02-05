@@ -99,6 +99,7 @@ When tests execute with `make tests`, a few things are happening:
 First make sure you have `Test::Nginx` installed. You can get it from CPAN with something like that:
 ```
 sudo perl -MCPAN -e 'install Test::Nginx'
+sudo perl -MCPAN -e 'install Test::LongString'
 ```
 ( ref: http://forum.nginx.org/read.php?2,185570,185679 )
 

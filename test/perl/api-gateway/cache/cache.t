@@ -17,6 +17,18 @@ plan tests => repeat_each() * (blocks() * 3 );
 my $pwd = cwd();
 
 our $HttpConfig = <<_EOC_;
+    lua_package_path "src/lua/?.lua;/usr/local/lib/lua/?.lua;;";
+    init_by_lua '
+        local v = require "jit.v"
+        v.on("$Test::Nginx::Util::ErrLogFile")
+        -- require "api-gateway.validation"
+        require "resty.core"
+    ';
+
+    client_body_temp_path /tmp/;
+    proxy_temp_path /tmp/;
+    fastcgi_temp_path /tmp/;
+
     lua_shared_dict cachedkeys 10m;
     include ../../api-gateway/redis-upstream.conf; # generated during test script
 _EOC_
@@ -31,7 +43,7 @@ __DATA__
 === TEST 1: test cache manager stores are saved in order
 --- http_config eval: $::HttpConfig
 --- config
-    error_log ../cache_test1_error.log debug;
+    error_log ../test-logs/cache_test1_error.log debug;
     location /t {
         content_by_lua '
             local cache_cls = require "api-gateway.cache.cache"
@@ -79,7 +91,7 @@ X-Test: test
 === TEST 2: test that local cache store is populated from a second level store
 --- http_config eval: $::HttpConfig
 --- config
-    error_log ../cache_test2_error.log debug;
+    error_log ../test-logs/cache_test2_error.log debug;
     location /t {
         content_by_lua '
             local cache_cls = require "api-gateway.cache.cache"
@@ -138,7 +150,7 @@ X-Test: test
 === TEST 3: test that items can be expired from cache
 --- http_config eval: $::HttpConfig
 --- config
-    error_log ../cache_test3_error.log debug;
+    error_log ../test-logs/cache_test3_error.log debug;
     location /t {
         content_by_lua '
             local cache_cls = require "api-gateway.cache.cache"
@@ -187,17 +199,34 @@ GET /t
 X-Test: test
 
 
-=== TEST 4: test that ttl_function overrides the static ttl
+=== TEST 4: test a ttl function overrides the static ttl
 --- http_config eval: $::HttpConfig
 --- config
-    error_log ../cache_test4_error.log debug;
+    error_log ../test-logs/cache_test4_error.log debug;
     location /t {
         content_by_lua '
-            --1. set item in cache through cache with TTL of 10s
-            --2. set a TTL_function to expire the item in 1s
-            --3. wait for 1s then get the item from cache
-            --4. test that the item does not exist anymore
-            ngx.say("OK")
+            --1. set item in cache through cache with a TTL function
+            local cache_cls = require "api-gateway.cache.cache"
+            local cache = cache_cls:new()
+            local function exp_fn(value)
+                return value
+            end
+            local local_cache = require "api-gateway.cache.store.localCache":new({
+                dict = "cachedkeys", -- defined in nginx conf as lua_shared_dict cachedkey 50m;
+                --2. set a TTL function to expire the item
+                ttl = exp_fn
+            })
+
+            cache:addStore(local_cache)
+
+            cache:put("key1","1")
+            cache:put("key2","12")
+
+            --3. wait for 1s then get the items from cache
+            ngx.sleep(1.5)
+
+            --4. test that the key2 still exists but key1 does not exist anymore
+            ngx.say("key1=" .. tostring(cache:get("key1")) .. ",key2=" .. tostring(cache:get("key2")))
         ';
     }
 
@@ -205,11 +234,9 @@ X-Test: test
 --- request
 GET /t
 --- response_body_like eval
-["OK"]
+["key1=nil,key2=12"]
 --- error_code: 200
 --- no_error_log
 [error]
 --- more_headers
 X-Test: test
-
-
