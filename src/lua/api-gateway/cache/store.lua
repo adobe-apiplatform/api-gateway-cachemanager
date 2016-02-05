@@ -34,12 +34,26 @@ end
 function _M:__init()
 end
 
----
+--- Returns the ttl ( in seconds ) for the cached keys, as set in the constructor init object with "ttl".
+-- if `ttl` is a function it will call the function and return the result.
+-- if `ttl` is a static value it returns it
+-- else it returns nil
 --
-function _M:getTTL()
-    --1. if user has defined `ttl_function` return its value
-    --2. if user has defined a static `ttl` return it
-    --3. cache doesn't expire
+-- @param key cache key
+-- @param value vaue to be cached
+--
+function _M:getTTL(key,value)
+    if (type(self.ttl) == "function") then
+        local result, ttl_v = pcall(self.ttl,value)
+        if (result) then
+            ngx.log(ngx.DEBUG, "Key:[" , tostring(key), "] should expire in ", tostring(ttl_v) , "s from ", tostring(self:getName()))
+            return tonumber(ttl_v)
+        end
+        ngx.log(ngx.WARN, "Error calling ttl function:", tostring(ttl_v))
+        return nil
+    end
+    ngx.log(ngx.DEBUG, "Key:[" , tostring(key), "] should expire in ", tostring(self.ttl) , "s from ", tostring(self:getName()))
+    return tonumber(self.ttl)
 end
 
 ---
