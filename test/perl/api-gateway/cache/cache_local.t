@@ -17,6 +17,12 @@ plan tests => repeat_each() * (blocks() * 3 );
 my $pwd = cwd();
 
 our $HttpConfig = <<_EOC_;
+    lua_package_path "src/lua/?.lua;/usr/local/lib/lua/?.lua;;";
+
+    client_body_temp_path /tmp/;
+    proxy_temp_path /tmp/;
+    fastcgi_temp_path /tmp/;
+
     lua_shared_dict cachedkeys 10m;
     include ../../api-gateway/redis-upstream.conf; # generated during test script
 _EOC_

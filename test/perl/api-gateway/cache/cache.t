@@ -18,12 +18,6 @@ my $pwd = cwd();
 
 our $HttpConfig = <<_EOC_;
     lua_package_path "src/lua/?.lua;/usr/local/lib/lua/?.lua;;";
-    init_by_lua '
-        local v = require "jit.v"
-        v.on("$Test::Nginx::Util::ErrLogFile")
-        -- require "api-gateway.validation"
-        require "resty.core"
-    ';
 
     client_body_temp_path /tmp/;
     proxy_temp_path /tmp/;
@@ -205,11 +199,12 @@ X-Test: test
     error_log ../test-logs/cache_test4_error.log debug;
     location /t {
         content_by_lua '
+            local cjson = require "cjson"
             --1. set item in cache through cache with a TTL function
             local cache_cls = require "api-gateway.cache.cache"
             local cache = cache_cls:new()
             local function exp_fn(value)
-                return value
+                return cjson.decode(value).ttl
             end
             local local_cache = require "api-gateway.cache.store.localCache":new({
                 dict = "cachedkeys", -- defined in nginx conf as lua_shared_dict cachedkey 50m;
@@ -219,8 +214,8 @@ X-Test: test
 
             cache:addStore(local_cache)
 
-            cache:put("key1","1")
-            cache:put("key2","12")
+            cache:put("key1", cjson.encode({name="john doe", ttl = "1"}) )
+            cache:put("key2",cjson.encode( {name="Mark", ttl = "12"}) )
 
             --3. wait for 1s then get the items from cache
             ngx.sleep(1.5)
@@ -234,7 +229,7 @@ X-Test: test
 --- request
 GET /t
 --- response_body_like eval
-["key1=nil,key2=12"]
+['key1=nil,key2={"name":"Mark","ttl":"12"}']
 --- error_code: 200
 --- no_error_log
 [error]

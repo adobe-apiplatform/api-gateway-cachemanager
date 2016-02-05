@@ -40,7 +40,7 @@ end
 -- else it returns nil
 --
 -- @param key cache key
--- @param value vaue to be cached
+-- @param value value to be cached
 --
 function _M:getTTL(key,value)
     if (type(self.ttl) == "function") then
