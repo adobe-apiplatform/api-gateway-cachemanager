@@ -108,6 +108,14 @@ function _M:addGetCommand(redis, key)
     error("addGetCommand method must be overwritten from redisHashCache or redisSetCache")
 end
 
+--- The Redis command to execute in order to delete an element from the cache
+-- @param redis the instance of the redis client
+-- @param key Cache Key
+--
+function _M:addDeleteCommand(redis, key)
+    error("addDeleteCommand method must be overwritten from redisHashCache or redisSetCache")
+end
+
 ---
 -- @Override
 -- @param key The name of the cached key
@@ -160,8 +168,28 @@ function _M:put(key, value)
     return false
 end
 
+---
+-- @Override
+-- @param key
+-- @param value
+--
 function _M:evict(key)
-    error("evict method not implemented yet ")
+    ngx.log(ngx.DEBUG, "Delete key from Redis [", tostring(key), "], key=", tostring(key))
+    local redis_rw = redis:new()
+    local redis_host, redis_port = getRedisUpstream(REDIS_RW_UPSTREAM)
+    local ok, err = redis_rw:connect(redis_host, redis_port)
+    if ok then
+        redis_rw:init_pipeline()
+        self:addDeleteCommand(redis_rw, key)
+        local commit_res, commit_err = redis_rw:commit_pipeline()
+        if (commit_err == nil) then
+            return true
+        end
+        ngx.log(ngx.WARN, "Failed to delete key [", key, "] in Redis. Error:", commit_err)
+        return false
+    end
+    ngx.log(ngx.WARN, "Failed to delete key:" .. tostring(key) .. " from cache: [", tostring(redis_host) .. ":" .. tostring(redis_port), "]. Error:", err)
+    return false
 end
 
 return _M
