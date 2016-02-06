@@ -203,22 +203,37 @@ X-Test: test
             --1. set item in cache through cache with a TTL function
             local cache_cls = require "api-gateway.cache.cache"
             local cache = cache_cls:new()
-            local function exp_fn(value)
-                return cjson.decode(value).ttl
+
+            local function exp_fn_local(value)
+                return cjson.decode(value).ttl_local
+            end
+            local function exp_fn_redis(value)
+                return cjson.decode(value).ttl_redis
             end
             local local_cache = require "api-gateway.cache.store.localCache":new({
                 dict = "cachedkeys", -- defined in nginx conf as lua_shared_dict cachedkey 50m;
                 --2. set a TTL function to expire the item
-                ttl = exp_fn
+                ttl = exp_fn_local
             })
-
+            local redis_cache = require "api-gateway.cache.store.redisSetCache":new({
+                ttl = exp_fn_redis
+            })
+            local stores = cache:getStores()
             cache:addStore(local_cache)
+            cache:addStore(redis_cache)
 
-            cache:put("key1", cjson.encode({name="john doe", ttl = "1"}) )
-            cache:put("key2",cjson.encode( {name="Mark", ttl = "12"}) )
+            cache:put("key1", cjson.encode({name="john doe", ttl_local = "1", ttl_redis = "2"}) )
+            cache:put("key2",cjson.encode( {name="Mark", ttl_local = "12", ttl_redis = "13"}) )
 
-            --3. wait for 1s then get the items from cache
+            --3. wait for 1.5s then get the items from cache
             ngx.sleep(1.5)
+
+            assert(cache:get("key1") ~= nil, "Value in local_cache for key1 should have been not nil" )
+            assert(cache:get("key2") ~= nil, "Value in local_cache for key2 should have been not nil" )
+
+            ngx.sleep(1)
+
+            assert(cache:get("key1") == nil, "Value in local_cache for key1 should have been nil" )
 
             --4. test that the key2 still exists but key1 does not exist anymore
             ngx.say("key1=" .. tostring(cache:get("key1")) .. ",key2=" .. tostring(cache:get("key2")))
@@ -229,7 +244,7 @@ X-Test: test
 --- request
 GET /t
 --- response_body_like eval
-['key1=nil,key2={"name":"Mark","ttl":"12"}']
+['key1=nil,key2={"ttl_redis":"13","name":"Mark","ttl_local":"12"}']
 --- error_code: 200
 --- no_error_log
 [error]

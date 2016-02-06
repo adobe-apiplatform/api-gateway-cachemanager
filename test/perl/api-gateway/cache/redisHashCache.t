@@ -34,13 +34,13 @@ run_tests();
 __DATA__
 
 
-=== TEST 1: test the put, get and evit methods in the redis set cache
+=== TEST 1: test the put, get and evit methods in the redis hash cache
 --- http_config eval: $::HttpConfig
 --- config
-    error_log ../hashCache_redis_test1_error.log debug;
+    error_log ../redisSetCache_test1_error.log debug;
     location /t {
         content_by_lua '
-            local redis_cache = require "api-gateway.cache.store.redisSetCache":new({
+            local redis_cache = require "api-gateway.cache.store.redisHashCache":new({
                 field = "test-field",
                 ttl = 1 -- static ttl in seconds
             })
@@ -73,5 +73,42 @@ GET /t
 X-Test: test
 
 
+=== TEST 2: test that items can be expired from redis hash cache
+--- http_config eval: $::HttpConfig
+--- config
+    error_log ../redisSetCache_test2_error.log debug;
+    location /t {
+        content_by_lua '
+            local redis_cache = require "api-gateway.cache.store.redisHashCache":new({
+                field = "test-field",
+                ttl = 2 -- static ttl in seconds
+            })
 
+            --1. set item in cache through cache with TTL of 1s
+            local key = "key1"
+            local value = "value1"
+            redis_cache:put(key, value)
 
+            ngx.sleep(1)
+            assert(redis_cache:get(key) == value, "Value in redis_cache should be value1 but instead was " .. tostring(redis_cache:get(key)))
+
+            --2. pause for 2s
+            ngx.sleep(1)
+
+            --3. test that the item does not exist anymore
+            assert(redis_cache:get(key) == nil, "Value in redis_cache should be nil but instead was " .. tostring(redis_cache:get(key)))
+
+            ngx.say("OK")
+        ';
+    }
+
+--- timeout: 5s
+--- request
+GET /t
+--- response_body_like eval
+["OK"]
+--- error_code: 200
+--- no_error_log
+[error]
+--- more_headers
+X-Test: test
