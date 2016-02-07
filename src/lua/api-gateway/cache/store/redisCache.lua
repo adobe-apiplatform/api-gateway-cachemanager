@@ -152,7 +152,11 @@ end
 -- @param value
 --
 function _M:evict(key)
-    ngx.log(ngx.DEBUG, "Delete key from Redis [", tostring(key), "], key=", tostring(key))
+    ngx.log(ngx.DEBUG, "Delete key from Redis [", tostring(key), "]")
+    if (key == nil or #key == 0) then
+        ngx.log(ngx.WARN, "Could not evict an empty key")
+        return
+    end
     local redis_rw = redis:new()
     local redis_host, redis_port = getRedisUpstream(REDIS_RW_UPSTREAM)
     local ok, err = redis_rw:connect(redis_host, redis_port)
