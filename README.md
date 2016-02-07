@@ -127,7 +127,7 @@ For the moment, follow the MacOS instructions.
 
  If you want to run a single test, the following command helps:
  ```
- PATH=/usr/local/sbin:$PATH TEST_NGINX_SERVROOT=`pwd`/target/servroot TEST_NGINX_PORT=1989 prove -I ./test/resources/test-nginx/lib -r ./test/perl/api-gateway/cache/cache.t
+ PATH=/usr/local/sbin:$PATH TEST_NGINX_SERVROOT=`pwd`/target/servroot TEST_NGINX_PORT=1989 prove -I ./test/resources/test-nginx/lib -I ./test/resources/test-nginx/inc -r ./test/perl/api-gateway/cache/cache.t
  ```
  This command only executes the test `cache.t`.
 
