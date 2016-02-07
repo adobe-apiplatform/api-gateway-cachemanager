@@ -2,6 +2,8 @@ gateway:
   image: adobeapiplatform/apigateway
   links:
     - redis:redis.docker
+  environment:
+    - TEST_NGINX_PORT=1989
   volumes:
     - ~/tmp/apiplatform/api-gateway-cachemanager/src/lua/api-gateway/cache:/usr/local/api-gateway/lualib/api-gateway/cache
     - ~/tmp/apiplatform/api-gateway-cachemanager/test/perl:/tmp/perl
