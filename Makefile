@@ -45,7 +45,7 @@ redis: all
 pre-docker-test:
 	echo "   pre-docker-test"
 	rm -rf $(BUILD_DIR)/*
-	rm -rf  ~/tmp/apiplatform/api-gateway-cachemanager/target/
+	rm -rf  ~/tmp/apiplatform/api-gateway-cachemanager/
 	mkdir  -p $(BUILD_DIR)
 	mkdir  -p $(BUILD_DIR)/test-logs
 	cp -r test/resources/api-gateway $(BUILD_DIR)
@@ -69,6 +69,10 @@ run-docker-test:
 
 test-docker: pre-docker-test run-docker-test post-docker-test
 	echo "running tests with docker ..."
+
+test-docker-manual: pre-docker-test
+	echo "starting the docker images ..."
+	cd ./test/manual && docker-compose up --force-recreate
 
 package:
 	git archive --format=tar --prefix=api-gateway-cachemanager-1.3.0/ -o api-gateway-cachemanager-1.3.0.tar.gz -v HEAD

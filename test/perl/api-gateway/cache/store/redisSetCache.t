@@ -10,7 +10,7 @@ use Cwd qw(cwd);
 #master_process_enabled(1);
 #log_level('warn');
 
-repeat_each(2);
+repeat_each(4);
 
 plan tests => repeat_each() * (blocks() * 3 );
 
@@ -34,28 +34,27 @@ run_tests();
 __DATA__
 
 
-=== TEST 1: test the local cache store
+=== TEST 1: test the put, get and evit methods in the redis set cache
 --- http_config eval: $::HttpConfig
 --- config
-    error_log ../localCache_test1_error.log debug;
+    error_log ../test-logs/redisSetCache_test1_error.log debug;
     location /t {
         content_by_lua '
-            local local_cache = require "api-gateway.cache.store.localCache":new({
-                dict = "cachedkeys", -- defined in nginx conf as lua_shared_dict cachedkey 50m;
-                ttl = 1  -- static ttl in seconds
+            local redis_cache = require "api-gateway.cache.store.redisSetCache":new({
+                ttl = 1 -- static ttl in seconds
             })
 
             --1. set item in cache through cache
             local key = "key1"
             local value = "value1"
-            local_cache:put(key, value)
-            local value_in_cache = local_cache:get(key)
+            redis_cache:put(key, value)
+            local value_in_cache = redis_cache:get(key)
             assert(value_in_cache == value, "Value for the key should be value1 but instead it was " .. tostring(value_in_cache))
 
-            --2. delete from local store, using the local_cache store instance
-            local_cache:evict(key)
+            --2. delete from local store, using the redis_cache store instance
+            redis_cache:evict(key)
 
-            assert(local_cache:get(key) == nil, "Value in local_cache should be nil but instead was " .. tostring(local_cache:get(key)))
+            assert(redis_cache:get(key) == nil, "Value in redis cache should be nil but instead was " .. tostring(redis_cache:get(key)))
 
             ngx.say("OK")
         ';
@@ -73,29 +72,29 @@ GET /t
 X-Test: test
 
 
-=== TEST 2: test that items can be expired from local cache
+=== TEST 2: test that items can be expired from redis set cache
 --- http_config eval: $::HttpConfig
 --- config
-    error_log ../localCache_test2_error.log debug;
+    error_log ../test-logs/redisSetCache_test2_error.log debug;
     location /t {
         content_by_lua '
-            local local_cache = require "api-gateway.cache.store.localCache":new({
-                dict = "cachedkeys", -- defined in nginx conf as lua_shared_dict cachedkey 50m;
-                ttl = 1  -- static ttl in seconds
+            local redis_cache = require "api-gateway.cache.store.redisSetCache":new({
+                ttl = 2 -- static ttl in seconds
             })
 
             --1. set item in cache through cache with TTL of 1s
             local key = "key1"
             local value = "value1"
-            local_cache:put(key, value)
+            redis_cache:put(key, value)
 
-            assert(local_cache:get(key) == value, "Value in local_cache should be value1 but instead was " .. tostring(local_cache:get(key)))
+            ngx.sleep(1)
+            assert(redis_cache:get(key) == value, "Value in redis_cache should be value1 but instead was " .. tostring(redis_cache:get(key)))
 
-            --2. pause for 2s
-            ngx.sleep(2)
+            --2. pause again
+            ngx.sleep(1.5)
 
             --3. test that the item does not exist anymore
-            assert(local_cache:get(key) == nil, "Value in local_cache should be nil but instead was " .. tostring(local_cache:get(key)))
+            assert(redis_cache:get(key) == nil, "Value in redis_cache should be nil but instead was " .. tostring(redis_cache:get(key)))
 
             ngx.say("OK")
         ';
@@ -111,8 +110,3 @@ GET /t
 [error]
 --- more_headers
 X-Test: test
-
-
-
-
-

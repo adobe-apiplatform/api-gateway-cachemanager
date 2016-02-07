@@ -225,15 +225,16 @@ X-Test: test
             cache:put("key1", cjson.encode({name="john doe", ttl_local = "1", ttl_redis = "2"}) )
             cache:put("key2",cjson.encode( {name="Mark", ttl_local = "12", ttl_redis = "13"}) )
 
-            --3. wait for 1.5s then get the items from cache
+            --3. wait for a while then get the items from cache
             ngx.sleep(1.5)
 
-            assert(cache:get("key1") ~= nil, "Value in local_cache for key1 should have been not nil" )
-            assert(cache:get("key2") ~= nil, "Value in local_cache for key2 should have been not nil" )
+            assert(cache:get("key1") ~= nil, "Value in cache for key1 should not be nil" ) -- here "key1" is saved in the local_cache from Redis
+            assert(cache:get("key2") ~= nil, "Value in cache for key2 should not be nil" )
 
-            ngx.sleep(1)
+            ngx.sleep(1.5)
 
-            assert(cache:get("key1") == nil, "Value in local_cache for key1 should have been nil" )
+            -- after 3s key1 should have expired form both cache stores: local and redis
+            assert(cache:get("key1") == nil, "Value in cache for key1 should have been nil but was: [" .. tostring(cache:get("key1")) .. "]")
 
             --4. test that the key2 still exists but key1 does not exist anymore
             ngx.say("key1=" .. tostring(cache:get("key1")) .. ",key2=" .. tostring(cache:get("key2")))

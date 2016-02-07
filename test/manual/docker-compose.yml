@@ -1,0 +1,20 @@
+gateway:
+  image: adobeapiplatform/apigateway
+  links:
+    - redis:redis.docker
+  environment:
+    - TEST_NGINX_PORT=1989
+    - LOG_LEVEL=debug
+    - DEBUG=true
+  volumes:
+    - ~/tmp/apiplatform/api-gateway-cachemanager/src/lua/api-gateway/cache:/usr/local/api-gateway/lualib/api-gateway/cache
+    - ~/tmp/apiplatform/api-gateway-cachemanager/test/manual/api-gateway-config/conf.d/includes:/etc/api-gateway/conf.d/includes
+    - ~/tmp/apiplatform/api-gateway-cachemanager/test/manual/api-gateway-config/environment.conf.d:/etc/api-gateway/environment.conf.d
+    - ~/tmp/apiplatform/api-gateway-cachemanager/test/manual/api-gateway-config/html:/etc/api-gateway/html
+    - ~/tmp/apiplatform/api-gateway-cachemanager/test/manual/api-gateway-config/scripts:/etc/api-gateway/scripts
+  ports:
+    - "80:80"
+redis:
+  image: redis:2.8
+  ports:
+  - "6379:6379"

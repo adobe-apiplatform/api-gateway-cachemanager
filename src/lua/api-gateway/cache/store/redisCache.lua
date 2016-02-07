@@ -103,13 +103,18 @@ function _M:get(key)
     local redis_host, redis_port = getRedisUpstream(REDIS_RO_UPSTREAM)
     local ok, err = redis_r:connect(redis_host, redis_port)
     if ok then
-        local redis_key, selecterror = self:addGetCommand(redis_r, key)
+        local redis_response, err = self:addGetCommand(redis_r, key)
         redis_r:set_keepalive(30000, 100)
-        if (type(redis_key) == 'string') then
-            return redis_key
+        if (err) then
+            ngx.log(ngx.WARN, "Could not return a value for key=[", tostring(key), "].", err)
+            return nil
         end
-        ngx.log(ngx.WARN, "non-string keys not supported at the moment.")
-        return nil
+        if (redis_response == ngx.null) then
+            ngx.log(ngx.DEBUG, "key=[", tostring(key), "] not found in ", tostring(self:getName()))
+            return nil
+        end
+        ngx.log(ngx.WARN, "key=[", tostring(key), "] returned a value of type=", type(redis_response), " from ", tostring(self:getName()))
+        return redis_response
     end
     ngx.log(ngx.WARN, "Failed to read key " .. tostring(key) .. " from Redis cache:[", redis_host, ":", redis_port, "]. Error:", err)
     return nil
@@ -122,7 +127,8 @@ end
 --
 function _M:put(key, value)
     local keyexpires = self:getTTL(key, value)
-    ngx.log(ngx.DEBUG, "Storing in Redis the key [", tostring(key), "], expires in=", tostring(keyexpires), " s, value=", tostring(value))
+--    ngx.log(ngx.DEBUG, "Storing in Redis the key [", tostring(key), "], expires in=", tostring(keyexpires), " s, value=", tostring(value))
+    ngx.log(ngx.DEBUG, "Storing in Redis the key [", tostring(key), "], expires in=", tostring(keyexpires), " s" )
     local redis_rw = redis:new()
     local redis_host, redis_port = getRedisUpstream(REDIS_RW_UPSTREAM)
     local ok, err = redis_rw:connect(redis_host, redis_port)
