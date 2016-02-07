@@ -105,10 +105,10 @@ function _M:get(key)
     if ok then
         local redis_key, selecterror = self:addGetCommand(redis_r, key)
         redis_r:set_keepalive(30000, 100)
-        if (type(redis_key) == 'string') then
+        if (type(redis_key) == 'string' or type(redis_key) == 'nil') then
             return redis_key
         end
-        ngx.log(ngx.WARN, "non-string keys not supported at the moment.")
+        ngx.log(ngx.WARN, "key=[", tostring(key), "] returned a value of type=", type(redis_key), ".non-string cached values not supported at the moment.")
         return nil
     end
     ngx.log(ngx.WARN, "Failed to read key " .. tostring(key) .. " from Redis cache:[", redis_host, ":", redis_port, "]. Error:", err)
