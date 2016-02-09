@@ -25,41 +25,49 @@ function _M:new(o)
     local o = o or {}
     setmetatable(o, self)
     self.__index = self
-    self:__init(o)
     return o
 end
 
----
--- Init method called from constructor
-function _M:__init()
-    local cache = ngx.apiGateway.request_cache
-    local cache_key = ngx.var.escaped_key
-    if (ngx.var.subrequest_method == "PUT") then
-        ngx.req.read_body()
-        -- value is nil if
-        --
-        --1. the request body has not been read,
-        --2. the request body has been read into disk temporary files,
-        --3. or the request body has zero size.
-        -- If the request body has been read into disk files, try calling the ngx.req.get_body_file function instead.
-        local value = ngx.req.get_body_data() or ngx.req.get_body_file()
-        ngx.log(ngx.DEBUG, "Storing value=", tostring(value), " into key=", tostring(cache_key), " in cache")
-        if (value ~= nil) then
-            cache:put(tostring(cache_key),value)
-            ngx.status = ngx.HTTP_OK
-            ngx.log(ngx.DEBUG, "Stored value=", tostring(value), " with key=", tostring(cache_key), " in cache")
-        end
+local function put(cache, key)
+    ngx.req.read_body()
+    -- value is nil if
+    --
+    --1. the request body has not been read,
+    --2. the request body has been read into disk temporary files,
+    --3. or the request body has zero size.
+    -- If the request body has been read into disk files, try calling the ngx.req.get_body_file function instead.
+    local value = ngx.req.get_body_data() or ngx.req.get_body_file()
+    ngx.log(ngx.DEBUG, "Storing value=", tostring(value), " into key=", tostring(key), " in cache")
+    if (value ~= nil) then
+        cache:put(tostring(key),value)
+        ngx.status = ngx.HTTP_OK
+        ngx.log(ngx.DEBUG, "Stored value=", tostring(value), " with key=", tostring(key), " in cache")
     end
+end
 
-    if (ngx.var.subrequest_method == "GET") then
-        local val = cache:get(tostring(cache_key))
-        if (val ~= nil) then
-            ngx.log(ngx.DEBUG, "Found value=", tostring(val), " with key=", tostring(cache_key), " stored in cache")
-            ngx.status = ngx.HTTP_OK
-        else
-            ngx.log(ngx.DEBUG, "No value in cache found for key=", tostring(cache_key))
-            ngx.status = ngx.HTTP_NOT_FOUND
-        end
+local function get(cache, key)
+    local val = cache:get(tostring(key))
+    if (val ~= nil) then
+        ngx.log(ngx.DEBUG, "Found value=", tostring(val), " with key=", tostring(key), " stored in cache")
+        ngx.status = ngx.HTTP_OK
+    else
+        ngx.log(ngx.DEBUG, "No value in cache found for key=", tostring(key))
+        ngx.status = ngx.HTTP_NOT_FOUND
+    end
+end
+
+---
+-- Store/retrieve requests responses to/from cache
+-- @param sr_method
+-- @param cache 
+-- @param key 
+--
+function _M:handleRequest(sr_method, cache, key)
+    if ("PUT" == sr_method) then
+        put(cache, key)
+    end
+    if ("GET" == sr_method) then
+        get(cache, key)
     end
 end
 

@@ -73,8 +73,14 @@ __DATA__
         set_escape_uri $escaped_key $arg_key;
 
         content_by_lua '
-            require "api-gateway.cache.rcache":new()
+            local sr_method = ngx.var.subrequest_method
+            local cache = ngx.apiGateway.request_cache
+            local key = ngx.var.escaped_key
 
+            local rcache_cls = require "api-gateway.cache.rcache"
+            local rcache = rcache_cls:new()
+
+            rcache:handleRequest(sr_method, cache, key)
         ';
     }
 
