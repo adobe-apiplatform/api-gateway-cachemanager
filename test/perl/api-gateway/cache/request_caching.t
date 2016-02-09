@@ -73,33 +73,8 @@ __DATA__
         set_escape_uri $escaped_key $arg_key;
 
         content_by_lua '
-            local cache = ngx.apiGateway.request_cache
-            local cache_key = ngx.var.escaped_key
-            if (ngx.var.subrequest_method == "PUT") then
-                ngx.req.read_body()
-                -- value is nil if
-                --
-                --1. the request body has not been read,
-                --2. the request body has been read into disk temporary files,
-                --3. or the request body has zero size.
-                -- If the request body has been read into disk files,
-                --         try calling the ngx.req.get_body_file function instead.
-                local value = ngx.req.get_body_data() or ngx.req.get_body_file()
-                ngx.log(ngx.DEBUG, "Storing value=", tostring(value), " into key=", tostring(cache_key))
-                if (value ~= nil) then
-                    cache:put(tostring(cache_key),value)
-                    ngx.status = ngx.HTTP_OK
-                end
-            end
+            require "api-gateway.cache.rcache":new()
 
-            if (ngx.var.subrequest_method == "GET") then
-                local val = cache:get(tostring(cache_key))
-                if (val ~= nil) then
-                    ngx.say(tostring(val))
-                    return
-                end
-                ngx.status = ngx.HTTP_NOT_FOUND
-            end
         ';
     }
 
@@ -129,7 +104,12 @@ __DATA__
         set_escape_uri $escaped_key $arg_key;
         content_by_lua '
             local cache = ngx.apiGateway.request_cache
-            ngx.print(tostring(cache:get(ngx.var.escaped_key)))
+            if (cache:get(ngx.var.escaped_key) ~= nil) then
+                ngx.print("from cache:" .. tostring(cache:get(ngx.var.escaped_key)))
+            else
+                ngx.status = ngx.HTTP_NOT_FOUND
+                ngx.print("not found")
+            end
         ';
      }
 
@@ -144,9 +124,9 @@ __DATA__
 --- pipelined_requests eval
 [
    "GET /t?p1=v1",
-   "GET /t?p1=v1",
-   "GET /t?p1=v1",
    "GET /get_cached_key?key=%2Ft%3Fp1%3Dv1",
+   "GET /t?p1=v1",
+   "GET /t?p1=v1",
    "GET /sleep?time=3.5",
    "GET /get_cached_key?key=%2Ft%3Fp1%3Dv1",
    "GET /t?p1=v1"
@@ -154,19 +134,25 @@ __DATA__
 --- response_body_like eval
 [
 '{"message":"Please cache me for 10 seconds."}',
-'{"message":"Please cache me for 10 seconds."}',
-'{"message":"Please cache me for 10 seconds."}',
-'HTTP/1.1 200 OK.*
+
+'from cache:HTTP/1.1 200 OK.*
 Content-Type: application/json.*
 Cache-Control: max-age=10.*
 .*
 {"message":"Please cache me for 10 seconds."}.*',
+
+'{"message":"Please cache me for 10 seconds."}',
+
+'{"message":"Please cache me for 10 seconds."}',
+
 '3.5',
-'nil',
+
+'not found',
+
 '{"message":"Please cache me for 10 seconds."}',
 ]
 --- error_code eval
-[200,200,200,200,200,200,200]
+[200,200,200,200,200,404,200]
 --- no_error_log
 [error]
 --- more_headers
