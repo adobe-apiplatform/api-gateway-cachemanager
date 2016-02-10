@@ -28,32 +28,58 @@ function _M:new(o)
     return o
 end
 
-local function put(cache, key)
+
+--- This method returns the request body using Lua functions.
+--  There are 2 functions used:
+--  1. ngx.req.get_body_data() - returning nil if
+--      1. the request body has not been read,
+--      2. the request body has been read into disk temporary files,
+--      3. or the request body has zero size.
+--  2. ngx.req.get_body_file()
+--     If the request body has been read into disk files, ngx.req.get_body_file() function may be used instead.
+--
+local function readRequestBody()
     ngx.req.read_body()
-    -- value is nil if
-    --
-    --1. the request body has not been read,
-    --2. the request body has been read into disk temporary files,
-    --3. or the request body has zero size.
-    -- If the request body has been read into disk files, try calling the ngx.req.get_body_file function instead.
-    local value = ngx.req.get_body_data() or ngx.req.get_body_file()
-    ngx.log(ngx.DEBUG, "Storing value=", tostring(value), " into key=", tostring(key), " in cache")
+    return ngx.req.get_body_data() or ngx.req.get_body_file()
+end
+
+--- The request body is either returned from an nginx variable $subrequest_body
+-- or it's read from readRequestBody() method
+--
+local function getRequestBody()
+    return ngx.var.subrequest_body or readRequestBody()
+end
+
+--- Stores the given key into the given cache instance.
+-- The value of the key is read from the subrequest body
+-- @param cache an instance of cache.lua
+-- @param key the key to save
+--
+local function put(cache, key)
+    local value = getRequestBody()
+    --ngx.log(ngx.DEBUG, "Storing value=", tostring(value), " into key=", tostring(key), " in cache")
+    ngx.log(ngx.DEBUG, "Storing key=", tostring(key), " in cache.")
     if (value ~= nil) then
         cache:put(tostring(key),value)
-        ngx.status = ngx.HTTP_OK
-        ngx.log(ngx.DEBUG, "Stored value=", tostring(value), " with key=", tostring(key), " in cache")
+--        ngx.log(ngx.DEBUG, "Stored value=", tostring(value), " with key=", tostring(key), " in cache")
+        ngx.log(ngx.DEBUG, "Stored key=", tostring(key), " in cache.")
+        return ngx.HTTP_OK
     end
 end
 
+--- Returns a tuple <HTTP Status,value> found in cache, it any
+-- @param cache an instance of cache.lua
+-- @param key the key to lookup
+--
 local function get(cache, key)
     local val = cache:get(tostring(key))
     if (val ~= nil) then
-        ngx.log(ngx.DEBUG, "Found value=", tostring(val), " with key=", tostring(key), " stored in cache")
-        ngx.status = ngx.HTTP_OK
-    else
-        ngx.log(ngx.DEBUG, "No value in cache found for key=", tostring(key))
-        ngx.status = ngx.HTTP_NOT_FOUND
+--        ngx.log(ngx.DEBUG, "Found value=", tostring(val), " with key=", tostring(key), " stored in cache")
+        ngx.log(ngx.DEBUG, "Found key=", tostring(key), " stored in cache.")
+        return ngx.HTTP_OK, val
     end
+    ngx.log(ngx.DEBUG, "No value in cache found for key=", tostring(key))
+    return ngx.HTTP_NOT_FOUND, nil
 end
 
 ---
@@ -63,11 +89,17 @@ end
 -- @param key 
 --
 function _M:handleRequest(sr_method, cache, key)
+    ngx.log(ngx.DEBUG , " Handling ", sr_method , " for key [", tostring(key), "]")
     if ("PUT" == sr_method) then
-        put(cache, key)
+        local status = put(cache, key)
+        ngx.status = status
+        return
     end
     if ("GET" == sr_method) then
-        get(cache, key)
+        local status, value = get(cache, key)
+        ngx.status = status     -- print the status first
+        ngx.print(value or "")  -- then append the body, if any
+        return
     end
 end
 

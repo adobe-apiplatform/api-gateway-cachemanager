@@ -64,12 +64,15 @@ function _M:get(key)
 end
 
 function _M:put(key, value)
+    if (type(value) ~= "string") then
+        ngx.log(ngx.WARN,".Could not save key=", tostring(key), " into ", tostring(self:getName()), ". Invalid value of type=", type(value))
+    end
     local d = self:getDictInstance()
     if (d ~= nil) then
         local expires_in = self:getTTL(key, value) or 0
         local succ, err, forcible = d:set(key, value, expires_in)
         if (err) then
-            ngx.log(ngx.WARN, "Could not save key=", tostring(key), " into ", tostring(self:getName()))
+            ngx.log(ngx.WARN, "Could not save key=", tostring(key), " into ", tostring(self:getName()), ".", err)
         end
         if (forcible) then
             ngx.log(ngx.INFO, "shared dict=", tostring(self:getDict()) " has removed other items from memory when adding key:", tostring(key))
