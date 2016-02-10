@@ -10,9 +10,9 @@ use Cwd qw(cwd);
 #master_process_enabled(1);
 #log_level('warn');
 
-repeat_each(1);
+repeat_each(2);
 
-plan tests => repeat_each() * (blocks()) + 20;
+plan tests => repeat_each() * (blocks()) + 40;
 
 my $pwd = cwd();
 
@@ -93,7 +93,7 @@ __DATA__
         root ../api-gateway;
     }
 
-    location /t {
+    location /t2 {
          srcache_default_expire 1s;
          srcache_request_cache_control on; # onor Cache-control: no-cache and Pragma:no-cache
 
@@ -133,7 +133,7 @@ __DATA__
      location /compare {
         content_by_lua '
             local res1, res2 = ngx.location.capture_multi({
-                 { "/get_cached_key?key=%2Ft%3Fp1%3Dv1" },
+                 { "/get_cached_key?key=%2Ft2%3Fp1%3Dv1" },
                  { "/favicon.ico" }
              })
 
@@ -158,13 +158,13 @@ __DATA__
 --- timeout: 20s
 --- pipelined_requests eval
 [
-   "GET /t?p1=v1",
-   "GET /t?p1=v1",
-   "GET /t?p1=v1",
+   "GET /t2?p1=v1",
+   "GET /t2?p1=v1",
+   "GET /t2?p1=v1",
    "GET /compare",
    "GET /sleep?time=3.5",
-   "GET /get_cached_key?key=%2Ft%3Fp1%3Dv1",
-   "GET /t?p1=v1"
+   "GET /get_cached_key?key=%2Ft2%3Fp1%3Dv1",
+   "GET /t2?p1=v1"
 ]
 --- response_body_like eval
 [

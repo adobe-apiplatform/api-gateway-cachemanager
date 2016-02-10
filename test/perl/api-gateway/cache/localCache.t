@@ -37,7 +37,7 @@ __DATA__
 === TEST 1: test the local cache store
 --- http_config eval: $::HttpConfig
 --- config
-    error_log ../localCache_test1_error.log debug;
+    error_log ../test-logs/localCache_test1_error.log debug;
     location /t {
         content_by_lua '
             local local_cache = require "api-gateway.cache.store.localCache":new({
@@ -76,7 +76,7 @@ X-Test: test
 === TEST 2: test that items can be expired from local cache
 --- http_config eval: $::HttpConfig
 --- config
-    error_log ../localCache_test2_error.log debug;
+    error_log ../test-logs/localCache_test2_error.log debug;
     location /t {
         content_by_lua '
             local local_cache = require "api-gateway.cache.store.localCache":new({

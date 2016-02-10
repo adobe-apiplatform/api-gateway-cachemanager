@@ -37,7 +37,7 @@ __DATA__
 === TEST 1: test the put, get and evit methods in the redis set cache
 --- http_config eval: $::HttpConfig
 --- config
-    error_log ../redisSetCache_test1_error.log debug;
+    error_log ../test-logs/redisSetCache_test1_error.log debug;
     location /t {
         content_by_lua '
             local redis_cache = require "api-gateway.cache.store.redisSetCache":new({
@@ -75,7 +75,7 @@ X-Test: test
 === TEST 2: test that items can be expired from redis set cache
 --- http_config eval: $::HttpConfig
 --- config
-    error_log ../redisSetCache_test2_error.log debug;
+    error_log ../test-logs/redisSetCache_test2_error.log debug;
     location /t {
         content_by_lua '
             local redis_cache = require "api-gateway.cache.store.redisSetCache":new({
