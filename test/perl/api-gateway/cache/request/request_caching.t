@@ -77,7 +77,7 @@ __DATA__
             local cache = ngx.apiGateway.request_cache
             local key = ngx.var.escaped_key
 
-            local rcache_cls = require "api-gateway.cache.rcache"
+            local rcache_cls = require "api-gateway.cache.request.rcache"
             local rcache = rcache_cls:new()
 
             rcache:handleRequest(sr_method, cache, key)

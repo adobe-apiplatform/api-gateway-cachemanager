@@ -10,7 +10,7 @@ use Cwd qw(cwd);
 #master_process_enabled(1);
 #log_level('warn');
 
-repeat_each(2);
+repeat_each(4);
 
 plan tests => repeat_each() * (blocks() * 3 );
 
@@ -37,7 +37,7 @@ __DATA__
 === TEST 1: test the put, get and evit methods in the redis hash cache
 --- http_config eval: $::HttpConfig
 --- config
-    error_log ../redisSetCache_test1_error.log debug;
+    error_log ../test-logs/redisHashCache_test1_error.log debug;
     location /t {
         content_by_lua '
             local redis_cache = require "api-gateway.cache.store.redisHashCache":new({
@@ -45,7 +45,7 @@ __DATA__
                 ttl = 1 -- static ttl in seconds
             })
 
-            --1. set item in cache through cache
+            --1. set item in cache through redis_cache
             local key = "key1"
             local value = "value1"
             redis_cache:put(key, value)
@@ -55,7 +55,7 @@ __DATA__
             --2. delete from local store, using the redis_cache store instance
             redis_cache:evict(key)
 
-            assert(redis_cache:get(key) == nil, "Value in redis cache should be nil but instead was " .. tostring(redis_cache:get(key)))
+            assert(redis_cache:get(key) == nil, "Value in redis cache should be nil but instead was=" .. tostring(redis_cache:get(key)) .. " type=" .. type(redis_cache:get(key)))
 
             ngx.say("OK")
         ';
@@ -76,7 +76,7 @@ X-Test: test
 === TEST 2: test that items can be expired from redis hash cache
 --- http_config eval: $::HttpConfig
 --- config
-    error_log ../redisSetCache_test2_error.log debug;
+    error_log ../test-logs/redisHashCache_test2_error.log debug;
     location /t {
         content_by_lua '
             local redis_cache = require "api-gateway.cache.store.redisHashCache":new({
@@ -90,13 +90,13 @@ X-Test: test
             redis_cache:put(key, value)
 
             ngx.sleep(1)
-            assert(redis_cache:get(key) == value, "Value in redis_cache should be value1 but instead was " .. tostring(redis_cache:get(key)))
+            assert(redis_cache:get(key) == value, "Value in redis_cache should be value1 but it was " .. tostring(redis_cache:get(key)))
 
-            --2. pause for 2s
-            ngx.sleep(1)
+            --2. pause again
+            ngx.sleep(1.5)
 
             --3. test that the item does not exist anymore
-            assert(redis_cache:get(key) == nil, "Value in redis_cache should be nil but instead was " .. tostring(redis_cache:get(key)))
+            assert(redis_cache:get(key) == nil, "Value in redis_cache should be nil but it was " .. tostring(redis_cache:get(key)))
 
             ngx.say("OK")
         ';

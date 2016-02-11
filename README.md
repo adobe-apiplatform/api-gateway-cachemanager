@@ -4,8 +4,9 @@ Lua library for managing multiple cache stores.
 
 Table of Contents
 =================
-* [Motivation](#motivation)
 * [Status](#status)
+* [Synopsis] (#synopsis)
+* [Motivation](#motivation)
 * [Integration with other caching modules](#integration-with-other-caching-modules)
 * [Features](#features)
 * [Developer guide](#developer-guide)
@@ -16,8 +17,91 @@ Status
 
 This library is still under active development and is NOT YET production ready.
 
+Synopsis
+========
+
+
+```nginx
+http {
+    # define the local shared dictionary to cache requests in memory
+    lua_shared_dict cachedrequests 100m;
+
+    # register (true) Lua global variables or pre-load Lua modules at server start-up
+    init_by_lua '
+            ngx.apiGateway = ngx.apiGateway or {}
+            local cache_cls = require "api-gateway.cache.cache"
+            ngx.apiGateway.request_cache = cache_cls:new()
+            
+            -- define a local cache with a max TTL of 10s
+            local local_cache_max_ttl = 10
+            local local_cache = require "api-gateway.cache.store.localCache":new({
+                dict = "cachedrequests", 
+                ttl = function (value)
+                    return math.min(local_cache_max_ttl,(ngx.var.arg_exptime or local_cache_max_ttl))
+                end
+            })
+            
+            -- define a remote Redis cache with  max TTL of 5 minutes
+            local redis_cache_max_ttl = 300
+            local redis_cache = require "api-gateway.cache.store.redisSetCache":new({
+                ttl = function(value)
+                    -- ngx.var.arg_exptime is automatically set when
+                    --  /request-caching subrequest is called as:
+                    --  srcache_store PUT /request-caching <key>&exptime=<srcache_expire>;
+                    return math.min(redis_cache_max_ttl,(ngx.var.arg_exptime or redis_cache_max_ttl))
+                end
+            })
+
+            -- NOTE: order is important as cache stores are checked in the same order
+            ngx.apiGateway.request_cache:addStore(local_cache)
+            ngx.apiGateway.request_cache:addStore(redis_cache)
+    ';            
+}
+
+# define a location block for srcache-nginx-module
+location /request-caching {
+    internal;
+    set $subrequest_method $echo_request_method; # GET or PUT
+    set_escape_uri $escaped_key $arg_key;        # Cache KEY
+
+    content_by_lua '
+        local sr_method = ngx.var.subrequest_method
+        local cache = ngx.apiGateway.request_cache  -- instance of cache.lua defined in init_by_lua
+        local key = ngx.var.escaped_key
+
+        local rcache_cls = require "api-gateway.cache.request.rcache"
+        local rcache = rcache_cls:new()
+        
+        rcache:handleRequest(sr_method, cache, key) 
+    ';
+}
+            
+# a sample location that enables caching 
+location /foo {
+     srcache_default_expire 1s;
+     srcache_request_cache_control on; # honor Cache-control: no-cache and Pragma:no-cache
+
+     set $key $request_uri;                 # cache key is the entire request_uri which includes query string
+     set_escape_uri $escaped_key $key;      # 
+
+     # hooks to get/put items from/into cache
+     srcache_fetch GET /request-caching key=$escaped_key;                          
+     srcache_store PUT /request-caching key=$escaped_key&exptime=$srcache_expire;  
+     
+     srcache_store_statuses 200 301 302;    # This directive controls what responses to store to the cache 
+                                            # according to their status code.
+
+     # proxy_pass/fastcgi_pass/drizzle_pass/echo/etc...
+     # or even static files on the disk
+ }            
+            
+
+```
+
 Motivation
 ==========
+Simplify the logic to manage a multi-layered cache.  
+
 Part of the work for building an API Gateway often involves validating if the incoming request is valid. 
 The [API Gateway](https://github.com/adobe-apiplatform/apigateway) uses a simple [request-validation](https://github.com/adobe-apiplatform/api-gateway-request-validation#validating-requests) framework that makes a `subrequest` for each validator, expecting a `200` response code back, else the request is considered invalid. 
 These validators/subrequests often depend on other REST APIs, each with its own variable latency.  
@@ -36,13 +120,17 @@ Integration with other caching modules
 
 This module is compatible with other popular caching modules in the [Openresty](https://openresty.org/) community:
 
-1. [srcache-nginx-module](https://github.com/openresty/srcache-nginx-module) - Use this module for main request caching and Lua for subrequest caching.
+1. [srcache-nginx-module](https://github.com/openresty/srcache-nginx-module) - Use this module for main request caching. 
+    `srcache` module provides a hook in the configuration defining a `subrequest` to be called to `GET`/`PUT` items from/into a cache.
+    In the `subrequest` [cache.lua](src/lua/api-gateway/cache/cache.lua) can be used to work with multiple cache stores ( in-memory or remote ) at the same time.
+    See the `init_by_lua` block in the [Synopsis](#synopsis) for a sample to setup multiple cache stores with a cache.      
 2. [lua-resty-lrucache](https://github.com/openresty/lua-resty-lrucache) - Use this module for a LRU Cache based on LuaJIT FFI at each nginx process level. 
-`LruCacheStore` implementation leverages this module.
-3. [lua_shared_dict](https://github.com/openresty/lua-nginx-module#lua_shared_dict) - Use this module for a shared cache cross nginx processes, which is not affected by any nginx reload.
- `LocalCacheStore` implementation leveraging this directive.
+3. [lua_shared_dict](https://github.com/openresty/lua-nginx-module#lua_shared_dict) - Use this module for a shared cache cross nginx processes, which is not affected by an nginx reload.
+    [localCache.lua](src/lua/api-gateway/cache/localCache.lua) implementation leverages this directive.
  
 [Back to TOC](#table-of-contents)
+
+
 
 Features
 ========

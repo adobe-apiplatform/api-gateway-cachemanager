@@ -10,7 +10,7 @@ use Cwd qw(cwd);
 #master_process_enabled(1);
 #log_level('warn');
 
-repeat_each(2);
+repeat_each(4);
 
 plan tests => repeat_each() * (blocks() * 3 );
 
@@ -90,8 +90,8 @@ X-Test: test
             ngx.sleep(1)
             assert(redis_cache:get(key) == value, "Value in redis_cache should be value1 but instead was " .. tostring(redis_cache:get(key)))
 
-            --2. pause for 2s
-            ngx.sleep(1)
+            --2. pause again
+            ngx.sleep(1.5)
 
             --3. test that the item does not exist anymore
             assert(redis_cache:get(key) == nil, "Value in redis_cache should be nil but instead was " .. tostring(redis_cache:get(key)))

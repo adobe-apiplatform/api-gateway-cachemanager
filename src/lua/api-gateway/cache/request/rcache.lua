@@ -11,8 +11,8 @@
 
 
 --
--- Base class for implementing request caching
--- Cache backend request responses to redis and local cache
+-- Base class for implementing request caching with ngx srcache-nginx-module ( https://github.com/openresty/srcache-nginx-module )
+-- Cache backend request responses to multiple stores ( i.e. redis and local cache )
 -- Subrequest methods "PUT" and "GET" will store respectivly retrieve backend responses from cache
 --
 -- User: stanciu
@@ -43,20 +43,13 @@ local function readRequestBody()
     return ngx.req.get_body_data() or ngx.req.get_body_file()
 end
 
---- The request body is either returned from an nginx variable $subrequest_body
--- or it's read from readRequestBody() method
---
-local function getRequestBody()
-    return ngx.var.subrequest_body or readRequestBody()
-end
-
 --- Stores the given key into the given cache instance.
 -- The value of the key is read from the subrequest body
 -- @param cache an instance of cache.lua
 -- @param key the key to save
 --
 local function put(cache, key)
-    local value = getRequestBody()
+    local value = readRequestBody()
     --ngx.log(ngx.DEBUG, "Storing value=", tostring(value), " into key=", tostring(key), " in cache")
     ngx.log(ngx.DEBUG, "Storing key=", tostring(key), " in cache.")
     if (value ~= nil) then
@@ -84,9 +77,9 @@ end
 
 ---
 -- Store/retrieve requests responses to/from cache
--- @param sr_method
--- @param cache 
--- @param key 
+-- @param sr_method subrequest method ( GET or PUT )
+-- @param cache an instance of cache.lua
+-- @param key the key to lookup
 --
 function _M:handleRequest(sr_method, cache, key)
     ngx.log(ngx.DEBUG , " Handling ", sr_method , " for key [", tostring(key), "]")

@@ -72,15 +72,12 @@ __DATA__
         set $subrequest_method $echo_request_method;
         set_escape_uri $escaped_key $arg_key;
 
-        # if this variable is set, request caching will use it instead
-        set $subrequest_body $echo_request_body;
-
         content_by_lua '
             local sr_method = ngx.var.subrequest_method
             local cache = ngx.apiGateway.request_cache
             local key = ngx.var.escaped_key
 
-            local rcache_cls = require "api-gateway.cache.rcache"
+            local rcache_cls = require "api-gateway.cache.request.rcache"
             local rcache = rcache_cls:new()
 
             rcache:handleRequest(sr_method, cache, key)
