@@ -15,8 +15,10 @@ all: ;
 install: all
 	$(INSTALL) -d $(DESTDIR)/$(LUA_LIB_DIR)/api-gateway/cache/
 	$(INSTALL) -d $(DESTDIR)/$(LUA_LIB_DIR)/api-gateway/cache/store/
-	$(INSTALL) src/lua/api-gateway/validation/*.lua $(DESTDIR)/$(LUA_LIB_DIR)/api-gateway/cache/
-	$(INSTALL) src/lua/api-gateway/validation/*.lua $(DESTDIR)/$(LUA_LIB_DIR)/api-gateway/cache/store/
+	$(INSTALL) -d $(DESTDIR)/$(LUA_LIB_DIR)/api-gateway/cache/request/
+	$(INSTALL) src/lua/api-gateway/cache/*.lua $(DESTDIR)/$(LUA_LIB_DIR)/api-gateway/cache/
+	$(INSTALL) src/lua/api-gateway/cache/*.lua $(DESTDIR)/$(LUA_LIB_DIR)/api-gateway/cache/store/
+	$(INSTALL) src/lua/api-gateway/cache/*.lua $(DESTDIR)/$(LUA_LIB_DIR)/api-gateway/cache/request/
 
 test: redis
 	echo "Starting redis server on default port"
