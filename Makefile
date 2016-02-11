@@ -45,7 +45,7 @@ redis: all
 pre-docker-test:
 	echo "   pre-docker-test"
 	rm -rf $(BUILD_DIR)/*
-	rm -rf  ~/tmp/apiplatform/api-gateway-cachemanager/target/
+	rm -rf  ~/tmp/apiplatform/api-gateway-cachemanager/
 	mkdir  -p $(BUILD_DIR)
 	mkdir  -p $(BUILD_DIR)/test-logs
 	cp -r test/resources/api-gateway $(BUILD_DIR)
