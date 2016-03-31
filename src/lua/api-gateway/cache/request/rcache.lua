@@ -28,19 +28,12 @@ function _M:new(o)
     return o
 end
 
-
---- This method returns the request body using Lua functions.
---  There are 2 functions used:
---  1. ngx.req.get_body_data() - returning nil if
---      1. the request body has not been read,
---      2. the request body has been read into disk temporary files,
---      3. or the request body has zero size.
---  2. ngx.req.get_body_file()
---     If the request body has been read into disk files, ngx.req.get_body_file() function may be used instead.
---
+--- This method returns the request body.
+--   srcache module is loading the request body from memory.
+--   see: https://groups.google.com/forum/#!topic/openresty-en/Tc5ovYyNMGU
 local function readRequestBody()
     ngx.req.read_body()
-    return ngx.req.get_body_data() or ngx.req.get_body_file()
+    return ngx.req.get_body_data()
 end
 
 --- Stores the given key into the given cache instance.
@@ -49,7 +42,11 @@ end
 -- @param key the key to save
 --
 local function put(cache, key)
-    local value = readRequestBody()
+    local pcall_ok, value = pcall(readRequestBody)
+    if (not pcall_ok) then
+        ngx.log(ngx.WARN, "Could not read request body. Check the logs for more info.")
+        return
+    end
     --ngx.log(ngx.DEBUG, "Storing value=", tostring(value), " into key=", tostring(key), " in cache")
     ngx.log(ngx.DEBUG, "Storing key=", tostring(key), " in cache.")
     if (value ~= nil) then
