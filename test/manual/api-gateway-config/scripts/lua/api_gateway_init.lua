@@ -41,14 +41,14 @@ local function initRequestCaching(parentObject)
     local cache_cls = require "api-gateway.cache.cache"
     parentObject.request_cache = cache_cls:new()
 
-    local local_cache_max_ttl = 1000
+    local local_cache_max_ttl = 10
     local local_cache = require "api-gateway.cache.store.localCache":new({
         dict = "cachedkeys", -- defined in nginx conf as lua_shared_dict cachedkey 50m;
         ttl = function (value)
             return math.min(local_cache_max_ttl,(ngx.var.arg_exptime or local_cache_max_ttl))
         end
     })
-    local redis_cache_max_ttl = 2000
+    local redis_cache_max_ttl = 20
     local redis_cache = require "api-gateway.cache.store.redisSetCache":new({
         ttl = function(value)
             -- ngx.var.arg_exptime is automatically set when
