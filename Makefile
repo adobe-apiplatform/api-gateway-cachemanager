@@ -46,6 +46,8 @@ redis: all
 .PHONY: pre-docker-test
 pre-docker-test:
 	echo "   pre-docker-test"
+	echo "   cleaning up any other docker image"
+	docker ps -aq | xargs docker stop | xargs docker rm
 	rm -rf $(BUILD_DIR)/*
 	rm -rf  ~/tmp/apiplatform/api-gateway-cachemanager/
 	mkdir  -p $(BUILD_DIR)
@@ -60,16 +62,22 @@ pre-docker-test:
 	mkdir -p ~/tmp/apiplatform/api-gateway-cachemanager/target/test-logs
 	ln -s ~/tmp/apiplatform/api-gateway-cachemanager/target/test-logs ./target/test-logs
 
+.PHONY: get-redis-docker-ip
+get-redis-docker-ip:
+	$(eval $@_IP := $(shell docker run --entrypoint=ifconfig alpine eth0 | grep "inet addr" | cut -d: -f2 | awk '{ print $$1}'))
+	@echo "Assuming the next IP for the docker container is:" $($@_IP)
+	sed -i '' 's/127\.0\.0\.1\:6379/$($@_IP)\:6379/g' ~/tmp/apiplatform/api-gateway-cachemanager/test/perl/api-gateway/cache/status/remoteCacheStatus.t
+
 post-docker-test:
 	echo "    post-docker-test"
-	# cp -r ~/tmp/apiplatform/api-gateway-cachemanager/target/ ./target
-	# rm -rf  ~/tmp/apiplatform/api-gateway-cachemanager
+	cp -r ~/tmp/apiplatform/api-gateway-cachemanager/target/ ./target
+	rm -rf  ~/tmp/apiplatform/api-gateway-cachemanager
 
 run-docker-test:
 	echo "   run-docker-test"
 	- cd ./test && docker-compose up --force-recreate
 
-test-docker: pre-docker-test run-docker-test post-docker-test
+test-docker: pre-docker-test get-redis-docker-ip run-docker-test post-docker-test
 	echo "running tests with docker ..."
 
 test-docker-manual: pre-docker-test

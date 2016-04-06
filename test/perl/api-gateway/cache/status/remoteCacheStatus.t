@@ -187,7 +187,7 @@ Selected Redis Node:127.0.0.1:6379
     upstream cache_read_only_backend {
         server 127.0.0.1:12256;
         server 127.0.0.1:12257;
-        server localhost:6379 backup;
+        server 127.0.0.1:6379 backup;
     }
 }
 --- config
@@ -214,7 +214,7 @@ Selected Redis Node:127.0.0.1:6379
 
             local redisToRead, redisHost, redisPort = healthCheck:getHealthyServer("cache_read_only_backend")
             ngx.log(ngx.INFO,"redis to read is ".. tostring(redisToRead))
-            ngx.say("Selected Redis Node:", tostring(redisToRead), ",host:", tostring(redisHost), ",port:", tostring(redisPort))
+            ngx.say("Selected Redis Node:", tostring(redisToRead), ",port:", tostring(redisPort))
         ';
     }
 --- timeout: 20s
@@ -225,7 +225,7 @@ GET /test2
 127.0.0.1:12256 DOWN
 127.0.0.1:12257 DOWN
 127.0.0.1:6379 up
-Selected Redis Node:127.0.0.1:6379,host:127.0.0.1,port:6379
+Selected Redis Node:127.0.0.1:6379,port:6379
 --- no_error_log
 
 
@@ -311,7 +311,7 @@ upstream cache_read_only_backend {
 
             local redisToRead, redisHost, redisPort = healthCheck:getHealthyServer("cache_read_only_backend")
             ngx.log(ngx.INFO,"redis to read is ".. tostring(redisToRead))
-            ngx.say("Selected Redis Node:", tostring(redisToRead), ",host:", tostring(redisHost), ",port:", tostring(redisPort))
+            ngx.say("Selected Redis Node:", tostring(redisToRead), ",port:", tostring(redisPort))
 
 
             -- make sure it is saved in the dictionary too
@@ -323,7 +323,7 @@ upstream cache_read_only_backend {
 
             -- read the node again
             redisToRead, redisHost, redisPort = healthCheck:getHealthyServer("cache_read_only_backend")
-            ngx.say("Selected Redis Node 2nd time:", tostring(redisToRead), ",host:", tostring(redisHost), ",port:", tostring(redisPort))
+            ngx.say("Selected Redis Node 2nd time:", tostring(redisToRead),",port:", tostring(redisPort))
         ';
     }
 --- timeout: 20s
@@ -332,8 +332,8 @@ GET /test1
 
 --- response_body
 127.0.0.1:6379 up
-Selected Redis Node:127.0.0.1:6379,host:127.0.0.1,port:6379
+Selected Redis Node:127.0.0.1:6379,port:6379
 Selected Redis Node in shared_dict:127.0.0.1:6379
-Selected Redis Node 2nd time:127.0.0.1:6379,host:127.0.0.1,port:6379
+Selected Redis Node 2nd time:127.0.0.1:6379,port:6379
 --- no_error_log
 [error]
