@@ -46,8 +46,8 @@ redis: all
 .PHONY: pre-docker-test
 pre-docker-test:
 	echo "   pre-docker-test"
-	echo "   cleaning up any other docker image"
-	docker ps -aq | xargs docker stop | xargs docker rm
+	echo "   cleaning up any test_redis docker image"
+	docker ps | grep test_redis | awk '{print $$1}' | xargs docker stop | xargs docker rm
 	rm -rf $(BUILD_DIR)/*
 	rm -rf  ~/tmp/apiplatform/api-gateway-cachemanager/
 	mkdir  -p $(BUILD_DIR)
