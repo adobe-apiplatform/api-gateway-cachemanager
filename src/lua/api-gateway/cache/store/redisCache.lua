@@ -21,7 +21,7 @@
 --
 
 local redis = require "resty.redis"
-local RedisHealthCheck = require "api-gateway.redis.redisHealthCheck"
+local RedisStatus = require "api-gateway.cache.status.remoteCacheStatus"
 local cjson = require "cjson"
 
 -- redis endpoints are assumed to be global per GW node and therefore are read here
@@ -37,13 +37,13 @@ local REDIS_RW_UPSTREAM = "api-gateway-redis"
 -- Shared dictionary used by RedisHealthCheck
 local SHARED_DICT_NAME = "cachedkeys"
 
-local redisHealthCheck = RedisHealthCheck:new({
+local redisStatus = RedisStatus:new({
     shared_dict = SHARED_DICT_NAME
 })
 
 local function getRedisUpstream(upstream_name)
     local n = upstream_name or REDIS_RO_UPSTREAM
-    local upstream, host, port = redisHealthCheck:getHealthyRedisNode(n)
+    local upstream, host, port = redisStatus:getHealthyServer(n)
     ngx.log(ngx.DEBUG, "Obtained Redis Host:" .. tostring(host) .. ":" .. tostring(port), " from upstream:", n)
     if (nil ~= host and nil ~= port) then
         return host, port
