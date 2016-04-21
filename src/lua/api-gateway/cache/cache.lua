@@ -31,6 +31,28 @@ function _M:new(o)
     return o
 end
 
+---
+-- See if the the cache already exists inside the cache store
+-- @param store
+--
+function _M:hasStore(store)
+    if (store == nil) then
+        ngx.log(ngx.DEBUG, "Store to be compared is nil")
+        return false
+    end
+    for _, cache_store in ipairs(self.__cache_stores) do
+        if (cache_store == nil) then
+            ngx.log(ngx.DEBUG, "Store from cache store is nil" )
+            return false
+        end
+        ngx.log(ngx.DEBUG, "Comparing store named: ", store:getName(), " with existing store named: ", cache_store:getName())
+        if (cache_store:getName() == store:getName()) then
+            return true
+        end
+    end
+    return false
+end
+
 --- Adds a cache into the cache. The order in which the caches are added
 -- is important when reading / writing from/to cache.
 -- @param store An instance of api-gateway.cache.store object.
@@ -39,6 +61,11 @@ function _M:addStore(store)
     if (store == nil) then
         ngx.log(ngx.WARN, "Attempt to add a nil cache store")
         return nil
+    end
+
+    if (self:hasStore(store)) then
+       ngx.log(ngx.WARN, "Attempt to add a cache store that already exists: ", store:getName())
+       return nil
     end
 
     local count = #self.__cache_stores
