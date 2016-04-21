@@ -66,6 +66,11 @@ __DATA__
             assert(stores[1]:getName() == "local_cache", "1st store should be names local_store but it is " .. tostring(stores[1]:getName()))
             assert(stores[2]:getName() == "redis_hash_cache", "2nd store should be names redis_hash_cache but it is " .. tostring(stores[2]:getName()))
 
+            assert(cache:hasStore(local_cache), "local_cache store should already be defined in the cache stores")
+
+            cache:addStore(local_cache)
+            assert(table.getn(stores) == 2, "getStores() should return 2 stores")
+
             ngx.say("OK")
         ';
     }
@@ -73,7 +78,7 @@ __DATA__
 --- timeout: 5s
 --- request
 GET /t
---- response_body_like eval
+--- response_body_like
 ["OK"]
 --- error_code: 200
 --- no_error_log
