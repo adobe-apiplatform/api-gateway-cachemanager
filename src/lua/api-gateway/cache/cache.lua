@@ -45,7 +45,7 @@ function _M:hasStore(store)
             ngx.log(ngx.DEBUG, "Store from cache store is nil" )
             return false
         end
-        ngx.log(ngx.DEBUG, "Store to be added name: ", store:getName(), ". Existing store name: ", cache_store:getName())
+        ngx.log(ngx.DEBUG, "Comparing store named: ", store:getName(), " with existing store named: ", cache_store:getName())
         if (cache_store:getName() == store:getName()) then
             return true
         end
