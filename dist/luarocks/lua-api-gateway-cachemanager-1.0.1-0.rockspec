@@ -1,23 +1,22 @@
 package = "lua-api-gateway-cachemanager"
-version = "./-1"
+version = "1.0.1-0"
 source = {
-   url = "*** please add URL for source tarball, zip or repository here ***"
+   url = "git://github.com/adobe-apiplatform/api-gateway-cachemanager",
+   tag = "1.0.1"
 }
 description = {
+   summary = "Lua library for managing multiple cache stores",
    detailed = [[
-Table of Contents
-=================
-* [Status](#status)
-* [Synopsis] (#synopsis)
-* [Motivation](#motivation)
-* [Integration with other caching modules](#integration-with-other-caching-modules)
-* [Features](#features)
-* [Developer guide](#developer-guide)
+A simple lua API for caching: `cache:get(key)`,  `cache:put(key,value)`.
+This API caches data in multiple cache stores such as: local cache (based on shared dict), or Redis cache.
+When data is retrieved from cache, it's inspecting the cache stores in order (L1,L2,etc) and when the item is found it's saved in all cache stores.
  ]],
-   homepage = "*** please enter a project homepage ***",
-   license = "*** please specify a license ***"
+   homepage = "https://github.com/adobe-apiplatform/api-gateway-cachemanager",
+   license = "Apache 2.0"
 }
-dependencies = {}
+dependencies = {
+  "lua >= 5.1"
+}
 build = {
    type = "builtin",
    modules = {
