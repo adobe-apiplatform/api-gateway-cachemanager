@@ -20,13 +20,13 @@ dependencies = {
 build = {
    type = "builtin",
    modules = {
-      ["lua.api-gateway.cache.cache"] = "src/lua/api-gateway/cache/cache.lua",
-      ["lua.api-gateway.cache.request.rcache"] = "src/lua/api-gateway/cache/request/rcache.lua",
-      ["lua.api-gateway.cache.status.remoteCacheStatus"] = "src/lua/api-gateway/cache/status/remoteCacheStatus.lua",
-      ["lua.api-gateway.cache.store"] = "src/lua/api-gateway/cache/store.lua",
-      ["lua.api-gateway.cache.store.localCache"] = "src/lua/api-gateway/cache/store/localCache.lua",
-      ["lua.api-gateway.cache.store.redisCache"] = "src/lua/api-gateway/cache/store/redisCache.lua",
-      ["lua.api-gateway.cache.store.redisHashCache"] = "src/lua/api-gateway/cache/store/redisHashCache.lua",
-      ["lua.api-gateway.cache.store.redisSetCache"] = "src/lua/api-gateway/cache/store/redisSetCache.lua"
+      ["api-gateway.cache.cache"] = "src/lua/api-gateway/cache/cache.lua",
+      ["api-gateway.cache.request.rcache"] = "src/lua/api-gateway/cache/request/rcache.lua",
+      ["api-gateway.cache.status.remoteCacheStatus"] = "src/lua/api-gateway/cache/status/remoteCacheStatus.lua",
+      ["api-gateway.cache.store"] = "src/lua/api-gateway/cache/store.lua",
+      ["api-gateway.cache.store.localCache"] = "src/lua/api-gateway/cache/store/localCache.lua",
+      ["api-gateway.cache.store.redisCache"] = "src/lua/api-gateway/cache/store/redisCache.lua",
+      ["api-gateway.cache.store.redisHashCache"] = "src/lua/api-gateway/cache/store/redisHashCache.lua",
+      ["api-gateway.cache.store.redisSetCache"] = "src/lua/api-gateway/cache/store/redisSetCache.lua"
    }
 }
