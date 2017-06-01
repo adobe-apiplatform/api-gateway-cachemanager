@@ -1,5 +1,5 @@
 package = "lua-api-gateway-cachemanager"
-version = "1.0.1-0"
+version = "1.0.1-1"
 source = {
    url = "git://github.com/adobe-apiplatform/api-gateway-cachemanager",
    tag = "1.0.1"
