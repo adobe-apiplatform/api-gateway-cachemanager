@@ -22,7 +22,6 @@
 
 local redis = require "resty.redis"
 local RedisStatus = require "api-gateway.cache.status.remoteCacheStatus"
-local cjson = require "cjson"
 
 -- redis endpoints are assumed to be global per GW node and therefore are read here
 ---
@@ -41,8 +40,19 @@ local redisStatus = RedisStatus:new({
     shared_dict = SHARED_DICT_NAME
 })
 
-local function getRedisUpstream(upstream_name)
-    local n = upstream_name or REDIS_RO_UPSTREAM
+
+local cache_store_cls = require "api-gateway.cache.store"
+
+local _M = cache_store_cls:new()
+
+local DefaultRedisConnectionProvider = {
+    max_idle_timeout = 30000,
+    pool_size = 100,
+    default_redis_timeout = 5000
+}
+
+function DefaultRedisConnectionProvider:getRedisUpstream(upstream_name)
+    local n = upstream_name or REDIS_RW_UPSTREAM
     local upstream, host, port = redisStatus:getHealthyServer(n)
     ngx.log(ngx.DEBUG, "Obtained Redis Host:" .. tostring(host) .. ":" .. tostring(port), " from upstream:", n)
     if (nil ~= host and nil ~= port) then
@@ -53,9 +63,46 @@ local function getRedisUpstream(upstream_name)
     return nil, nil
 end
 
-local cache_store_cls = require "api-gateway.cache.store"
+function DefaultRedisConnectionProvider:getConnection(upstream)
+    local redis_host, redis_port = self:getRedisUpstream(upstream)
+    local redisPassword = os.getenv('REDIS_PASS') or os.getenv('REDIS_PASSWORD') or ''
+    return self:connectToRedis(redis_host, redis_port, redisPassword)
+end
 
-local _M = cache_store_cls:new()
+function DefaultRedisConnectionProvider:connectToRedis(host, port, password)
+    local redis_instance = redis:new()
+    local redis_timeout = ngx.var.redis_timeout or self.default_redis_timeout
+    redis_instance:set_timeout(redis_timeout)
+
+    local ok, err = redis_instance:connect(host, port)
+
+    if not ok then
+        ngx.log(ngx.ERR, "Failed to connect to Redis instance: " .. host .. ", port: " .. port .. ". Error: ", err)
+        return false, nil
+    end
+
+    if password ~= nil or password ~= '' then
+        -- Authenticate
+        local ok, err = redis_instance:auth(password)
+        if not ok then
+            ngx.log(ngx.ERR, "Redis authentication failed for server: " .. host .. ":" .. port .. ". Error: ", err)
+            return false, nil
+        end
+        ngx.log(ngx.DEBUG, "Redis authentication successful")
+        return ok, redis_instance
+    else
+        ngx.log(ngx.DEBUG, "No password authentication for Redis")
+        return true, redis_instance
+    end
+end
+
+function DefaultRedisConnectionProvider:closeConnection(redis_instance)
+    redis_instance:set_keepalive(self.max_idle_timeout, self.pool_size)
+end
+
+
+_M.redis_connection_provider = DefaultRedisConnectionProvider
+
 
 ---
 -- Returns the name of this cache store.
@@ -99,12 +146,10 @@ end
 -- @param key The name of the cached key
 --
 function _M:get(key)
-    local redis_r = redis:new()
-    local redis_host, redis_port = getRedisUpstream(REDIS_RO_UPSTREAM)
-    local ok, err = redis_r:connect(redis_host, redis_port)
+    local ok, redis_r = self.redis_connection_provider:getConnection(REDIS_RO_UPSTREAM)
     if ok then
         local redis_response, err = self:addGetCommand(redis_r, key)
-        redis_r:set_keepalive(30000, 100)
+        self.redis_connection_provider:closeConnection(redis_r)
         if (err) then
             ngx.log(ngx.WARN, "Could not return a value for key=[", tostring(key), "].", err)
             return nil
@@ -116,7 +161,6 @@ function _M:get(key)
         ngx.log(ngx.WARN, "key=[", tostring(key), "] returned a value of type=", type(redis_response), " from ", tostring(self:getName()))
         return redis_response
     end
-    ngx.log(ngx.WARN, "Failed to read key " .. tostring(key) .. " from Redis cache:[", redis_host, ":", redis_port, "]. Error:", err)
     return nil
 end
 
@@ -129,9 +173,7 @@ function _M:put(key, value)
     local keyexpires = self:getTTL(key, value)
 --    ngx.log(ngx.DEBUG, "Storing in Redis the key [", tostring(key), "], expires in=", tostring(keyexpires), " s, value=", tostring(value))
     ngx.log(ngx.DEBUG, "Storing in Redis the key [", tostring(key), "], expires in=", tostring(keyexpires), " s" )
-    local redis_rw = redis:new()
-    local redis_host, redis_port = getRedisUpstream(REDIS_RW_UPSTREAM)
-    local ok, err = redis_rw:connect(redis_host, redis_port)
+    local ok, redis_rw = self.redis_connection_provider:getConnection(REDIS_RW_UPSTREAM)
     if ok then
         --ngx.log(ngx.DEBUG, "WRITING IN REDIS JSON OBJ key=" .. key .. "=" .. value .. ",expiring in:" .. (keyexpires - (os.time() * 1000)) )
         redis_rw:init_pipeline()
@@ -140,7 +182,7 @@ function _M:put(key, value)
             redis_rw:expire(key, keyexpires)
         end
         local commit_res, commit_err = redis_rw:commit_pipeline()
-        redis_rw:set_keepalive(30000, 100)
+        self.redis_connection_provider:closeConnection(redis_rw)
         --ngx.log(ngx.WARN, "SAVE RESULT:" .. cjson.encode(commit_res) )
         if (commit_err == nil) then
             return true
@@ -148,7 +190,6 @@ function _M:put(key, value)
         ngx.log(ngx.WARN, "Failed to write the key [", key, "] in Redis. Error:", commit_err)
         return false
     end
-    ngx.log(ngx.WARN, "Failed to save key:" .. tostring(key) .. " into cache: [", tostring(redis_host) .. ":" .. tostring(redis_port), "]. Error:", err)
     return false
 end
 
@@ -163,20 +204,18 @@ function _M:evict(key)
         ngx.log(ngx.WARN, "Could not evict an empty key")
         return
     end
-    local redis_rw = redis:new()
-    local redis_host, redis_port = getRedisUpstream(REDIS_RW_UPSTREAM)
-    local ok, err = redis_rw:connect(redis_host, redis_port)
+    local ok, redis_rw = self.redis_connection_provider:getConnection(REDIS_RW_UPSTREAM)
     if ok then
         redis_rw:init_pipeline()
         self:addDeleteCommand(redis_rw, key)
         local commit_res, commit_err = redis_rw:commit_pipeline()
+        self.redis_connection_provider:closeConnection(redis_rw)
         if (commit_err == nil) then
             return true
         end
         ngx.log(ngx.WARN, "Failed to delete key [", key, "] in Redis. Error:", commit_err)
         return false
     end
-    ngx.log(ngx.WARN, "Failed to delete key:" .. tostring(key) .. " from cache: [", tostring(redis_host) .. ":" .. tostring(redis_port), "]. Error:", err)
     return false
 end
 

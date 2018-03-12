@@ -19,6 +19,10 @@ local redis_cache_cls = require "api-gateway.cache.store.redisCache"
 
 local _M = redis_cache_cls:new()
 
+function _M:setRedisConnectionProvider(redisConnectionProvider)
+    self.redis_connection_provider = redisConnectionProvider
+end
+
 -- Returns the name of this cache store.
 function _M:getName()
     return "redis_set_cache"

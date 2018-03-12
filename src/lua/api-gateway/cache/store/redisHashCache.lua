@@ -36,6 +36,10 @@ function _M:__init(init_obj)
     throwIfFieldIsNil(init_obj)
 end
 
+function _M:setRedisConnectionProvider(redisConnectionProvider)
+    self.redis_connection_provider = redisConnectionProvider
+end
+
 -- Returns the name of this cache store.
 function _M:getName()
     return "redis_hash_cache"
