@@ -23,18 +23,12 @@
 local redis = require "resty.redis"
 local RedisStatus = require "api-gateway.cache.status.remoteCacheStatus"
 
--- redis endpoints are assumed to be global per GW node and therefore are read here
----
--- Read Only Redis upstream name
-local REDIS_RO_UPSTREAM = "api-gateway-redis-replica"
-
----
--- Read write Redis upstream name
-local REDIS_RW_UPSTREAM = "api-gateway-redis"
-
 ---
 -- Shared dictionary used by RedisHealthCheck
 local SHARED_DICT_NAME = "cachedkeys"
+
+local REDIS_RO_UPSTREAM =  "api-gateway-redis-replica"
+local REDIS_RW_UPSTREAM = "api-gateway-redis"
 
 local redisStatus = RedisStatus:new({
     shared_dict = SHARED_DICT_NAME
@@ -51,7 +45,13 @@ local _M = cache_store_cls:new()
 local DefaultRedisConnectionProvider = {
     max_idle_timeout = 30000,
     pool_size = 100,
-    default_redis_timeout = 5000
+    default_redis_timeout = 5000,
+    -- Read Only Redis upstream name
+    redis_ro_upstream_connection_data = nil,
+
+    ---
+    -- Read write Redis upstream name
+    redis_rw_upstream_connection_data = nil
 }
 
 ---
@@ -77,7 +77,7 @@ end
 --- REDIS_PASSWORD
 function DefaultRedisConnectionProvider:getConnection(upstream)
     local redis_host, redis_port = self:getRedisUpstream(upstream)
-    local redisPassword = os.getenv('REDIS_PASS') or os.getenv('REDIS_PASSWORD') or ''
+    local redisPassword = os.getenv("REDIS_PASS") or os.getenv("REDIS_PASSWORD") or ''
     return self:connectToRedis(redis_host, redis_port, redisPassword)
 end
 
@@ -167,7 +167,17 @@ end
 -- @param key The name of the cached key
 --
 function _M:get(key)
-    local ok, redis_r = self.redis_connection_provider:getConnection(REDIS_RO_UPSTREAM)
+
+    local upstreamConfig = self.redis_connection_provider.redis_ro_upstream_connection_data or REDIS_RO_UPSTREAM
+    if self.redis_connection_provider.redis_ro_upstream_connection_data and
+            type(self.redis_connection_provider.redis_ro_upstream_connection_data) == 'table' then
+        upstreamConfig = {
+            upstream = self.redis_connection_provider.redis_ro_upstream_connection_data.upstream,
+            password = os.getenv(self.redis_connection_provider.redis_ro_upstream_connection_data.password)
+        }
+    end
+
+    local ok, redis_r = self.redis_connection_provider:getConnection(upstreamConfig)
     if ok then
         local redis_response, err = self:addGetCommand(redis_r, key)
         self.redis_connection_provider:closeConnection(redis_r)
@@ -194,7 +204,17 @@ function _M:put(key, value)
     local keyexpires = self:getTTL(key, value)
 --    ngx.log(ngx.DEBUG, "Storing in Redis the key [", tostring(key), "], expires in=", tostring(keyexpires), " s, value=", tostring(value))
     ngx.log(ngx.DEBUG, "Storing in Redis the key [", tostring(key), "], expires in=", tostring(keyexpires), " s" )
-    local ok, redis_rw = self.redis_connection_provider:getConnection(REDIS_RW_UPSTREAM)
+
+    local upstreamConfig = self.redis_connection_provider.redis_rw_upstream_connection_data or REDIS_RW_UPSTREAM
+    if self.redis_connection_provider.redis_rw_upstream_connection_data and
+            type(self.redis_connection_provider.redis_rw_upstream_connection_data) == 'table' then
+        upstreamConfig = {
+            upstream = self.redis_connection_provider.redis_rw_upstream_connection_data.upstream,
+            password = os.getenv(self.redis_connection_provider.redis_rw_upstream_connection_data.password)
+        }
+    end
+
+    local ok, redis_rw = self.redis_connection_provider:getConnection(upstreamConfig)
     if ok then
         --ngx.log(ngx.DEBUG, "WRITING IN REDIS JSON OBJ key=" .. key .. "=" .. value .. ",expiring in:" .. (keyexpires - (os.time() * 1000)) )
         redis_rw:init_pipeline()
@@ -225,7 +245,17 @@ function _M:evict(key)
         ngx.log(ngx.WARN, "Could not evict an empty key")
         return
     end
-    local ok, redis_rw = self.redis_connection_provider:getConnection(REDIS_RW_UPSTREAM)
+
+    local upstreamConfig = self.redis_connection_provider.redis_rw_upstream_connection_data or REDIS_RW_UPSTREAM
+    if self.redis_connection_provider.redis_rw_upstream_connection_data and
+            type(self.redis_connection_provider.redis_rw_upstream_connection_data) == 'table' then
+        upstreamConfig = {
+            upstream = self.redis_connection_provider.redis_rw_upstream_connection_data.upstream,
+            password = os.getenv(self.redis_connection_provider.redis_rw_upstream_connection_data.password)
+        }
+    end
+
+    local ok, redis_rw = self.redis_connection_provider:getConnection(upstreamConfig)
     if ok then
         redis_rw:init_pipeline()
         self:addDeleteCommand(redis_rw, key)
