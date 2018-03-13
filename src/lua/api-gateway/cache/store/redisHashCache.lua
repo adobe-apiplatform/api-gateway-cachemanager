@@ -36,6 +36,9 @@ function _M:__init(init_obj)
     throwIfFieldIsNil(init_obj)
 end
 
+---
+--- @params redisConnectionProvider
+--- Method that overrides the default redis_connection_provider
 function _M:setRedisConnectionProvider(redisConnectionProvider)
     self.redis_connection_provider = redisConnectionProvider
 end

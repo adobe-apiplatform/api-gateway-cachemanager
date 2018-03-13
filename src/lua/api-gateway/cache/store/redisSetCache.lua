@@ -19,6 +19,9 @@ local redis_cache_cls = require "api-gateway.cache.store.redisCache"
 
 local _M = redis_cache_cls:new()
 
+---
+--- @params redisConnectionProvider
+--- Method that overrides the default redis_connection_provider
 function _M:setRedisConnectionProvider(redisConnectionProvider)
     self.redis_connection_provider = redisConnectionProvider
 end

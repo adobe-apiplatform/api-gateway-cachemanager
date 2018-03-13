@@ -45,12 +45,19 @@ local cache_store_cls = require "api-gateway.cache.store"
 
 local _M = cache_store_cls:new()
 
+---
+--- DefaultRedisConnectionProvider - a default redis connection provider to be used
+---
 local DefaultRedisConnectionProvider = {
     max_idle_timeout = 30000,
     pool_size = 100,
     default_redis_timeout = 5000
 }
 
+---
+--- @params upstream_name
+--- This method retrieves an upstream connection
+--- @return host, port
 function DefaultRedisConnectionProvider:getRedisUpstream(upstream_name)
     local n = upstream_name or REDIS_RW_UPSTREAM
     local upstream, host, port = redisStatus:getHealthyServer(n)
@@ -63,12 +70,23 @@ function DefaultRedisConnectionProvider:getRedisUpstream(upstream_name)
     return nil, nil
 end
 
+---
+--- @params upstream
+--- @return success, redis_instance
+--- Method that gets a redis object after connection - it tries to authenticate based on an environment variable - REDIS_PASS or
+--- REDIS_PASSWORD
 function DefaultRedisConnectionProvider:getConnection(upstream)
     local redis_host, redis_port = self:getRedisUpstream(upstream)
     local redisPassword = os.getenv('REDIS_PASS') or os.getenv('REDIS_PASSWORD') or ''
     return self:connectToRedis(redis_host, redis_port, redisPassword)
 end
 
+---
+--- @params host
+--- @params port
+--- @params password
+--- @return success, redis
+--- Method that connects to redis host port with password if any
 function DefaultRedisConnectionProvider:connectToRedis(host, port, password)
     local redis_instance = redis:new()
     local redis_timeout = ngx.var.redis_timeout or self.default_redis_timeout
@@ -96,6 +114,9 @@ function DefaultRedisConnectionProvider:connectToRedis(host, port, password)
     end
 end
 
+---
+--- @params redis_instance
+--- Closes a connections and puts the connection back into the pool
 function DefaultRedisConnectionProvider:closeConnection(redis_instance)
     redis_instance:set_keepalive(self.max_idle_timeout, self.pool_size)
 end
