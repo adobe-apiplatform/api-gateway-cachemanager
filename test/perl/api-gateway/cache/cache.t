@@ -241,8 +241,11 @@ X-Test: test
             -- after 3s key1 should have expired form both cache stores: local and redis
             assert(cache:get("key1") == nil, "Value in cache for key1 should have been nil but was: [" .. tostring(cache:get("key1")) .. "]")
 
+            local cjson = require "cjson"
             --4. test that the key2 still exists but key1 does not exist anymore
-            ngx.say("key1=" .. tostring(cache:get("key1")) .. ",key2=" .. tostring(cache:get("key2")))
+            local key2 = cjson.decode(tostring(cache:get("key2")))
+            ngx.say("key1=" .. tostring(cache:get("key1")) .. ",key2={name=", key2.name, ",ttl_redis=", key2.ttl_redis,
+                ",ttl_local=", key2.ttl_local,"}")
         ';
     }
 
@@ -250,7 +253,7 @@ X-Test: test
 --- request
 GET /t
 --- response_body_like eval
-['key1=nil,key2={"ttl_redis":"13","name":"Mark","ttl_local":"12"}']
+['key1=nil,key2={name=Mark,ttl_redis=13,ttl_local=12}']
 --- error_code: 200
 --- no_error_log
 [error]

@@ -81,7 +81,7 @@ function DefaultRedisConnectionProvider:connectToRedis(host, port, password)
         return false, nil
     end
 
-    if password ~= nil or password ~= '' then
+    if password ~= nil and password ~= '' then
         -- Authenticate
         local ok, err = redis_instance:auth(password)
         if not ok then
