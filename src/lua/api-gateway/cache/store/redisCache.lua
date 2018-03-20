@@ -20,110 +20,29 @@
 -- Date: 31/01/16
 --
 
-local redis = require "resty.redis"
-local RedisStatus = require "api-gateway.cache.status.remoteCacheStatus"
-
----
--- Shared dictionary used by RedisHealthCheck
-local SHARED_DICT_NAME = "cachedkeys"
-
+local DefaultRedisConnectionProvider = require "api-gateway.cache.DefaultRedisConnectionProvider"
 local REDIS_RO_UPSTREAM =  "api-gateway-redis-replica"
 local REDIS_RW_UPSTREAM = "api-gateway-redis"
-
-local redisStatus = RedisStatus:new({
-    shared_dict = SHARED_DICT_NAME
-})
 
 
 local cache_store_cls = require "api-gateway.cache.store"
 
 local _M = cache_store_cls:new()
 
----
---- DefaultRedisConnectionProvider - a default redis connection provider to be used
----
-local DefaultRedisConnectionProvider = {
-    max_idle_timeout = 30000,
-    pool_size = 100,
-    default_redis_timeout = 5000,
-    -- Read Only Redis upstream name
-    redis_ro_upstream_connection_data = nil,
-
-    ---
-    -- Read write Redis upstream name
-    redis_rw_upstream_connection_data = nil
-}
-
----
---- @params upstream_name
---- This method retrieves an upstream connection
---- @return host, port
-function DefaultRedisConnectionProvider:getRedisUpstream(upstream_name)
-    local n = upstream_name or REDIS_RW_UPSTREAM
-    local upstream, host, port = redisStatus:getHealthyServer(n)
-    ngx.log(ngx.DEBUG, "Obtained Redis Host:" .. tostring(host) .. ":" .. tostring(port), " from upstream:", n)
-    if (nil ~= host and nil ~= port) then
-        return host, port
-    end
-
-    ngx.log(ngx.ERR, "Could not find a Redis upstream.")
-    return nil, nil
-end
-
----
---- @params upstream
---- @return success, redis_instance
---- Method that gets a redis object after connection - it tries to authenticate based on an environment variable - REDIS_PASS or
---- REDIS_PASSWORD
-function DefaultRedisConnectionProvider:getConnection(upstream)
-    local redis_host, redis_port = self:getRedisUpstream(upstream)
-    local redisPassword = os.getenv("REDIS_PASS") or os.getenv("REDIS_PASSWORD") or ''
-    return self:connectToRedis(redis_host, redis_port, redisPassword)
-end
-
----
---- @params host
---- @params port
---- @params password
---- @return success, redis
---- Method that connects to redis host port with password if any
-function DefaultRedisConnectionProvider:connectToRedis(host, port, password)
-    local redis_instance = redis:new()
-    local redis_timeout = ngx.var.redis_timeout or self.default_redis_timeout
-    redis_instance:set_timeout(redis_timeout)
-
-    local ok, err = redis_instance:connect(host, port)
-
-    if not ok then
-        ngx.log(ngx.ERR, "Failed to connect to Redis instance: " .. host .. ", port: " .. port .. ". Error: ", err)
-        return false, nil
-    end
-
-    if password ~= nil and password ~= '' then
-        -- Authenticate
-        local ok, err = redis_instance:auth(password)
-        if not ok then
-            ngx.log(ngx.ERR, "Redis authentication failed for server: " .. host .. ":" .. port .. ". Error: ", err)
-            return false, nil
-        end
-        ngx.log(ngx.DEBUG, "Redis authentication successful")
-        return ok, redis_instance
-    else
-        ngx.log(ngx.DEBUG, "No password authentication for Redis")
-        return true, redis_instance
-    end
-end
-
----
---- @params redis_instance
---- Closes a connections and puts the connection back into the pool
-function DefaultRedisConnectionProvider:closeConnection(redis_instance)
-    redis_instance:set_keepalive(self.max_idle_timeout, self.pool_size)
-end
-
 
 _M.redis_connection_provider = DefaultRedisConnectionProvider
 
+
+---
+--- @params redisConnectionProvider
+--- @params redis_rw_upstream_connection_data
+--- @params redis_ro_upstream_connection_data
+--- Method that overrides the default redis_connection_provider
+function _M:setRedisConnectionProvider(redisConnectionProvider, redis_rw_upstream_connection_data, redis_ro_upstream_connection_data)
+    self.redis_connection_provider = redisConnectionProvider
+    self.redis_connection_provider.redis_rw_upstream_connection_data = redis_rw_upstream_connection_data
+    self.redis_connection_provider.redis_ro_upstream_connection_data = redis_ro_upstream_connection_data
+end
 
 ---
 -- Returns the name of this cache store.

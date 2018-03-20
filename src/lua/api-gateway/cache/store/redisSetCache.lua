@@ -19,17 +19,6 @@ local redis_cache_cls = require "api-gateway.cache.store.redisCache"
 
 local _M = redis_cache_cls:new()
 
----
----
---- @params redisConnectionProvider
---- @params redis_rw_upstream_connection_data
---- @params redis_ro_upstream_connection_data
---- Method that overrides the default redis_connection_provider
-function _M:setRedisConnectionProvider(redisConnectionProvider, redis_rw_upstream_connection_data, redis_ro_upstream_connection_data)
-    self.redis_connection_provider = redisConnectionProvider
-    self.redis_connection_provider.redis_rw_upstream_connection_data = redis_rw_upstream_connection_data
-    self.redis_connection_provider.redis_ro_upstream_connection_data = redis_ro_upstream_connection_data
-end
 
 -- Returns the name of this cache store.
 function _M:getName()
