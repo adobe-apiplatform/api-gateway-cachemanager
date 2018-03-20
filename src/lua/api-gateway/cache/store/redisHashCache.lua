@@ -36,6 +36,7 @@ function _M:__init(init_obj)
     throwIfFieldIsNil(init_obj)
 end
 
+
 -- Returns the name of this cache store.
 function _M:getName()
     return "redis_hash_cache"

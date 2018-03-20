@@ -96,6 +96,7 @@ upstream cache_read_only_backend {
 }
 }
 --- config
+    error_log ../test-logs/remote_cache_test1_error.log debug;
     location = /test1 {
         access_log off;
         content_by_lua '
@@ -144,6 +145,7 @@ Selected Redis Node:127.0.0.1:6379
     }
 }
 --- config
+    error_log ../test-logs/remote_cache_test2_error.log debug;
     location = /test2 {
         access_log off;
         content_by_lua '
@@ -177,6 +179,7 @@ GET /test2
 --- response_body
 127.0.0.1:6379 up
 127.0.0.1:12256 DOWN
+[::1]:12256 DOWN
 Selected Redis Node:127.0.0.1:6379
 --- no_error_log
 
@@ -191,6 +194,7 @@ Selected Redis Node:127.0.0.1:6379
     }
 }
 --- config
+    error_log ../test-logs/remote_cache_test3_error.log debug;
     location = /test2 {
         access_log off;
         content_by_lua '
@@ -240,6 +244,7 @@ Selected Redis Node:127.0.0.1:6379,port:6379
     }
 }
 --- config
+    error_log ../test-logs/remote_cache_test4_error.log debug;
     location = /test2 {
         access_log off;
         content_by_lua '
@@ -274,6 +279,7 @@ GET /test2
 127.0.0.1:12256 DOWN
 127.0.0.1:12257 DOWN
 127.0.0.1:12258 DOWN
+[::1]:12258 DOWN
 Selected Redis Node:nil,host:nil,port:nil
 --- no_error_log
 
@@ -288,6 +294,7 @@ upstream cache_read_only_backend {
 }
 }
 --- config
+    error_log ../test-logs/remote_cache_test5_error.log debug;
     location = /test1 {
         access_log off;
         content_by_lua '
