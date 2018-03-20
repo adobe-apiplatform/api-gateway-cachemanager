@@ -168,14 +168,8 @@ end
 --
 function _M:get(key)
 
-    local upstreamConfig = self.redis_connection_provider.redis_ro_upstream_connection_data or REDIS_RO_UPSTREAM
-    if self.redis_connection_provider.redis_ro_upstream_connection_data and
-            type(self.redis_connection_provider.redis_ro_upstream_connection_data) == 'table' then
-        upstreamConfig = {
-            upstream = self.redis_connection_provider.redis_ro_upstream_connection_data.upstream,
-            password = os.getenv(self.redis_connection_provider.redis_ro_upstream_connection_data.password)
-        }
-    end
+    local upstreamConfig = self:getUpstreamConfig(self.redis_connection_provider.redis_ro_upstream_connection_data
+            or REDIS_RO_UPSTREAM)
 
     local ok, redis_r = self.redis_connection_provider:getConnection(upstreamConfig)
     if ok then
@@ -205,14 +199,8 @@ function _M:put(key, value)
 --    ngx.log(ngx.DEBUG, "Storing in Redis the key [", tostring(key), "], expires in=", tostring(keyexpires), " s, value=", tostring(value))
     ngx.log(ngx.DEBUG, "Storing in Redis the key [", tostring(key), "], expires in=", tostring(keyexpires), " s" )
 
-    local upstreamConfig = self.redis_connection_provider.redis_rw_upstream_connection_data or REDIS_RW_UPSTREAM
-    if self.redis_connection_provider.redis_rw_upstream_connection_data and
-            type(self.redis_connection_provider.redis_rw_upstream_connection_data) == 'table' then
-        upstreamConfig = {
-            upstream = self.redis_connection_provider.redis_rw_upstream_connection_data.upstream,
-            password = os.getenv(self.redis_connection_provider.redis_rw_upstream_connection_data.password)
-        }
-    end
+    local upstreamConfig = self:getUpstreamConfig(self.redis_connection_provider.redis_rw_upstream_connection_data
+            or REDIS_RW_UPSTREAM)
 
     local ok, redis_rw = self.redis_connection_provider:getConnection(upstreamConfig)
     if ok then
@@ -246,14 +234,8 @@ function _M:evict(key)
         return
     end
 
-    local upstreamConfig = self.redis_connection_provider.redis_rw_upstream_connection_data or REDIS_RW_UPSTREAM
-    if self.redis_connection_provider.redis_rw_upstream_connection_data and
-            type(self.redis_connection_provider.redis_rw_upstream_connection_data) == 'table' then
-        upstreamConfig = {
-            upstream = self.redis_connection_provider.redis_rw_upstream_connection_data.upstream,
-            password = os.getenv(self.redis_connection_provider.redis_rw_upstream_connection_data.password)
-        }
-    end
+    local upstreamConfig = self:getUpstreamConfig(self.redis_connection_provider.redis_rw_upstream_connection_data
+            or REDIS_RW_UPSTREAM)
 
     local ok, redis_rw = self.redis_connection_provider:getConnection(upstreamConfig)
     if ok then
@@ -268,6 +250,18 @@ function _M:evict(key)
         return false
     end
     return false
+end
+
+function _M:getUpstreamConfig(upstreamConfig)
+    local config = upstreamConfig
+    if upstreamConfig and
+            type(upstreamConfig) == 'table' then
+        config = {
+            upstream = upstreamConfig.upstream,
+            password = os.getenv(upstreamConfig.password)
+        }
+    end
+    return config
 end
 
 return _M
